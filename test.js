@@ -111,3 +111,39 @@ test('names an upload-only project after the folder the files share', () => {
   fs.writeFileSync(path.join(job, 'input', 'answers.md'), 'For students.');
   assert.strictEqual(collect(job).project.name, 'studybuddy');
 });
+
+test('pptx.js extracts palette, fonts, layout boxes, media; rejects non-pptx and escaping entries', () => {
+  const { extract } = require('./pptx');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-pptx-test-'));
+  const A = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+  const ph = (type, x, y, w, h) => `<p:sp><p:nvSpPr><p:nvPr><p:ph type="${type}"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm></p:spPr></p:sp>`;
+  const parts = {
+    'ppt/presentation.xml': `<p:presentation ${A}><p:sldSz cx="9144000" cy="6858000"/></p:presentation>`,
+    'ppt/theme/theme1.xml': `<a:theme ${A}><a:themeElements><a:clrScheme name="x"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:srgbClr val="fafafa"/></a:lt1><a:accent1><a:srgbClr val="0B5CAD"/></a:accent1><a:accent2><a:srgbClr val="F28C28"/></a:accent2></a:clrScheme>`
+      + '<a:fontScheme name="x"><a:majorFont><a:latin typeface="Georgia"/></a:majorFont><a:minorFont><a:latin typeface="No Such Font 123"/></a:minorFont></a:fontScheme></a:themeElements></a:theme>',
+    'ppt/slideMasters/slideMaster1.xml': `<p:sldMaster ${A}><p:cSld><p:bg><p:bgPr><a:solidFill><a:schemeClr val="bg1"/></a:solidFill></p:bgPr></p:bg><p:spTree>${ph('title', 457200, 274320, 8229600, 1143000)}${ph('body', 457200, 1600200, 8229600, 4525963)}</p:spTree></p:cSld></p:sldMaster>`,
+    'ppt/slideLayouts/slideLayout1.xml': `<p:sldLayout ${A} type="title"><p:cSld><p:spTree>${ph('ctrTitle', 914400, 2286000, 7315200, 1371600)}</p:spTree></p:cSld></p:sldLayout>`,
+    'ppt/slideLayouts/slideLayout2.xml': `<p:sldLayout ${A} type="obj"><p:cSld><p:spTree></p:spTree></p:cSld></p:sldLayout>`,
+    'ppt/media/image1.png': PNG.toString('latin1'), 'ppt/media/image2.emf': 'x', 'docProps/thumbnail.jpeg': 'jpeg',
+  };
+  const zip = (file, entries) => execFileSync('python3', ['-c',
+    'import sys,json,zipfile\nz=zipfile.ZipFile(sys.argv[1],"w")\nfor k,v in json.loads(sys.stdin.read()).items(): z.writestr(k, v.encode("latin1"))',
+    file], { input: JSON.stringify(entries) });
+  zip(path.join(dir, 'ok.pptx'), parts);
+  const t = extract(path.join(dir, 'ok.pptx'), path.join(dir, 'out'));
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'out', 'template.json'))), t);
+  assert.deepStrictEqual(t.colors, { dk1: '000000', lt1: 'FAFAFA', accent1: '0B5CAD', accent2: 'F28C28' });
+  assert.deepStrictEqual(t.fonts.minor, { name: 'No Such Font 123', installed: false });
+  assert.strictEqual(t.fonts.major.name, 'Georgia');
+  assert.strictEqual(t.slide.aspect, 1.333);
+  assert.deepStrictEqual(t.background, { color: 'FAFAFA' });
+  assert.deepStrictEqual(t.layouts.title.title, { x: 0.1, y: 0.333, w: 0.8, h: 0.2 });
+  assert.deepStrictEqual(t.layouts.content.body, { x: 0.05, y: 0.233, w: 0.9, h: 0.66 }); // inherited from the master
+  assert.deepStrictEqual(t.media, [{ file: 'media/image1.png', width: 1, height: 1, usedBy: [] }]);
+  assert.ok(fs.existsSync(path.join(dir, 'out', 'thumbnail.jpeg')));
+
+  fs.writeFileSync(path.join(dir, 'notes.pptx'), 'not a zip');
+  assert.throws(() => extract(path.join(dir, 'notes.pptx'), path.join(dir, 'o2')), /Not a \.pptx/);
+  zip(path.join(dir, 'evil.pptx'), { ...parts, '../evil.txt': 'x' });
+  assert.throws(() => extract(path.join(dir, 'evil.pptx'), path.join(dir, 'o3')), /escapes/);
+});
