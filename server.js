@@ -105,7 +105,10 @@ function describeTool(name, input = {}, jobDir = '.') {
   switch (name) {
     case 'Write': return ['write', `Writing ${file}`];
     case 'Edit': case 'MultiEdit': return ['write', `Editing ${file}`];
-    case 'Read': return ['read', `Reading ${input.file_path ? path.relative(jobDir, input.file_path) : 'file'}`];
+    case 'Read': {
+      const rel = input.file_path ? path.relative(jobDir, path.resolve(jobDir, input.file_path)) : 'file';
+      return ['read', `Reading ${rel.startsWith('..') ? path.basename(rel) : rel}`];
+    }
     case 'Glob': case 'Grep': case 'LS': return ['read', 'Looking through the inputs'];
     case 'Skill': {
       const s = input.skill || input.command || input.name || '';
@@ -113,7 +116,7 @@ function describeTool(name, input = {}, jobDir = '.') {
     }
     case 'Bash': {
       const c = String(input.command || '');
-      return /tectonic/.test(c) ? ['compile', 'Compiling with tectonic'] : ['compile', `Running ${c.slice(0, 50)}`];
+      return /^\s*tectonic\b/.test(c) ? ['compile', 'Compiling with tectonic'] : ['think', `Tried a shell command (only tectonic is allowed)`];
     }
     case 'TodoWrite': return ['think', 'Planning the outline'];
     default: return ['think', `Using ${name}`];
@@ -135,7 +138,7 @@ function runClaude(id, jobDir, kind, theme) {
       { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
     const timer = setTimeout(() => { step(id, 'error', 'Timed out after 10 minutes'); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
-    let buf = '', stderr = '', resultText = '';
+    let buf = '', stderr = '', resultText = '', cost;
     child.stdout.on('data', (d) => {
       buf += d;
       let nl;
@@ -150,18 +153,18 @@ function runClaude(id, jobDir, kind, theme) {
             pending.set(c.id, icon);
             step(id, icon, text);
           } else if (msg.type === 'assistant' && c.type === 'text' && c.text.trim()) {
-            const t = c.text.trim().replace(/\s+/g, ' ');
+            const t = c.text.trim().replace(/\*\*|`/g, '').replace(/\s+/g, ' ');
             step(id, 'note', t.length > 140 ? t.slice(0, 137) + '…' : t);
           } else if (msg.type === 'user' && c.type === 'tool_result' && c.is_error) {
             step(id, 'error', pending.get(c.tool_use_id) === 'compile' ? 'Compile error, fixing' : 'A step failed, retrying');
           }
         }
-        if (msg.type === 'result') resultText = msg.result || '';
+        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; }
       }
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
     child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'claude CLI not found on PATH' : e.message)); });
-    child.on('close', (code) => { clearTimeout(timer); resolve({ code, stderr, resultText }); });
+    child.on('close', (code) => { clearTimeout(timer); resolve({ code, stderr, resultText, cost }); });
   });
 }
 
@@ -206,12 +209,12 @@ async function pipeline(id, jobDir, { zips, repoUrl, kind, theme }) {
     } catch { /* facts summary is cosmetic */ }
 
     step(id, 'think', `Handing off to Claude Code (${kind}, ${theme} theme)`);
-    const { code, stderr, resultText } = await runClaude(id, jobDir, kind, theme);
+    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, kind, theme);
     if (!fs.existsSync(path.join(jobDir, 'main.pdf'))) {
       throw new Error(`Claude finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
     }
     await setStatus(jobDir, 'done');
-    emit(id, 'done', { pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex` });
+    emit(id, 'done', { pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, cost });
   } catch (e) {
     await setStatus(jobDir, 'failed').catch(() => {});
     emit(id, 'failed', { error: e.message });
@@ -267,7 +270,8 @@ async function createJob(req, res) {
 
     jobs.set(id, { events: [], clients: new Set(), finished: false });
     busy = id;
-    step(id, 'upload', `Received ${files.length} file${files.length === 1 ? '' : 's'}${repoUrl ? ' and a GitHub link' : ''}${qs.length ? `, ${qs.length} answer${qs.length === 1 ? '' : 's'}` : ''}`);
+    const got = [files.length && `${files.length} file${files.length === 1 ? '' : 's'}`, repoUrl && 'a GitHub link'].filter(Boolean).join(' and ');
+    step(id, 'upload', `Received ${got}${qs.length ? `, ${qs.length} answer${qs.length === 1 ? '' : 's'}` : ''}`);
     json(res, 201, { id });
     pipeline(id, jobDir, { zips, repoUrl, kind, theme });
   } catch (e) {

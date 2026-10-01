@@ -396,7 +396,7 @@ function listen(id) {
       $('#pdf').src = d.pdf + '#navpanes=0&view=FitH';
       $('#dlpdf').href = d.pdf + '?download=1';
       $('#dltex').href = d.tex + '?download=1';
-      $('#donemsg').textContent = `Typeset in ${mmss(d.t - t0)}.`;
+      $('#donemsg').textContent = `Typeset in ${mmss(d.t - t0)}${d.cost ? ` · $${d.cost.toFixed(2)}` : ''}.`;
       setState('done', 'Ready');
     }, 600);
   });
