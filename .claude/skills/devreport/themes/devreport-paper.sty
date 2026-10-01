@@ -138,14 +138,14 @@
   \providecommand{\subtitle}[1]{\gdef\@subtitle{#1}}
   \gdef\@subtitle{}
   \renewcommand{\maketitle}{%
-    \thispagestyle{plain}
+    \thispagestyle{plain}\begingroup\setlength{\parindent}{0pt}
     \vspace*{1.5em}
     {\sffamily\scriptsize\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.8em
     {\fontsize{34}{38}\selectfont\itshape\color{drInk}\@title\par}\vskip0.6em
     {\color{drAccent}\rule{3.5em}{1.6pt}}\par\vskip0.8em
     \ifx\@subtitle\@empty\else{\large\color{drMuted}\@subtitle\par}\vskip0.6em\fi
     {\sffamily\small\color{drInk}\@author}\hfill{\sffamily\small\color{drMuted}\@date}\par
-    \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\vskip1.6em}
+    \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\endgroup\vskip1.6em}
   \RequirePackage{hyperref}
   \hypersetup{colorlinks,linkcolor=drAccent,urlcolor=drAccentB,citecolor=drAccent,pdfborder={0 0 0}}
 }

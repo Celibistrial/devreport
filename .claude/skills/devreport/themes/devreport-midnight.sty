@@ -108,7 +108,7 @@
     {\ttfamily\footnotesize\color{drAccent}\$ devreport --render}\par\vskip0.8em
     {\fontsize{28}{32}\selectfont\bfseries\color{drInk}\inserttitle}{\color{drAccent}\fontsize{28}{32}\selectfont\ttfamily\_}\par\vskip0.6em
     \ifx\insertsubtitle\@empty\else{\large\color{drAccentB}\insertsubtitle}\par\vskip0.8em\fi
-    {\ttfamily\footnotesize\color{drMuted}// \insertauthor}\par
+    \ifx\beamer@shortauthor\@empty\else\ifx\beamer@shortauthor\undefined\else{\ttfamily\footnotesize\color{drMuted}// \insertauthor}\par\fi\fi
     {\ttfamily\footnotesize\color{drMuted}// \insertdate}\par
     \vfill}
   \pgfplotsset{every axis/.append style={width=0.9\linewidth, height=0.66\textheight}}
