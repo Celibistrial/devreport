@@ -104,6 +104,11 @@ main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;p
 .sw .bars i{width:6px;border-radius:1px}
 .sw.p .bars i{background:#a3361c}
 .sw.m .bars i{background:var(--neon)}
+.seg.th{grid-template-columns:repeat(3,1fr)}
+.sw.u{background:var(--paper);border:1.5px dashed #c4b8a2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font:11px/1.2 var(--mono);color:var(--muted);text-align:center}
+.sw.u .ic{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
+.sw.u .fn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sw.u.has{border-style:solid;border-color:var(--accent);background:#fff4ee;color:var(--accent-ink)}
 .theme .face b{padding:0 4px}
 .theme .face small{padding:0 4px}
 
@@ -166,6 +171,7 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .feed li.k-error .x{color:var(--accent-ink)}
 .feed li.k-humanize .i{background:#efe3ff;color:#6a3fb5}
 .feed li.k-collect .i{background:#e1efe6;color:var(--ok)}
+.feed li.k-template .i{background:#fff1d6;color:var(--warn)}
 .feed li.k-clone .i,.feed li.k-zip .i,.feed li.k-upload .i{background:#e4ecf7;color:#2c5d9b}
 .feed li.k-done .i{background:var(--ok);color:#fff}
 .feed li.k-failed .i{background:var(--accent);color:#fff}
@@ -253,13 +259,17 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
     <section class="sec">
       <h2><small>03</small>Theme</h2>
-      <div class="seg">
+      <div class="seg th">
         <label class="opt-card theme"><input type="radio" name="theme" value="paper" checked><span class="face">
           <span class="sw p"><span class="t">Aa</span><span class="r"></span><span class="l"></span><span class="l" style="width:62%"></span><span class="bars"><i style="height:14px"></i><i style="height:24px"></i><i style="height:18px"></i><i style="height:30px"></i></span></span>
           <b>Paper</b><small>Serif, cream, academic</small></span></label>
         <label class="opt-card theme"><input type="radio" name="theme" value="midnight"><span class="face">
           <span class="sw m"><span class="t">Aa</span><span class="r"></span><span class="l"></span><span class="l" style="width:62%"></span><span class="bars"><i style="height:12px"></i><i style="height:28px"></i><i style="height:20px"></i><i style="height:32px"></i></span></span>
           <b>Midnight</b><small>Dark, neon, terminal</small></span></label>
+        <label class="opt-card theme" id="tplcard"><input type="radio" name="theme" value="custom"><span class="face">
+          <span class="sw u" id="tplsw"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg></span><span class="fn" id="tplname">choose .pptx</span></span>
+          <b>Your template</b><small>.pptx colours, fonts, logo · slides</small></span></label>
+        <input type="file" id="tpl" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
       </div>
     </section>
 
@@ -304,8 +314,8 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 <script>
 const $ = (s) => document.querySelector(s);
 const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'), fileIn = $('#file');
-const ICON = { upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
-let files = [], es = null, t0 = 0, tick = null;
+const ICON = { template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
+let tplFile = null, files = [], es = null, t0 = 0, tick = null;
 
 const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
@@ -338,6 +348,23 @@ $('#repo').addEventListener('input', () => {
   $('#urlhint').classList.toggle('err', !!bad);
   $('#urlhint').textContent = bad ? 'That should look like owner/repo.' : 'Public repos only. Full history is cloned so commits can be charted.';
 });
+// "Your template" card: picking it opens the file picker; a template means slides
+const tplIn = $('#tpl'), checked = (n) => form.querySelector(`[name=${n}]:checked`).value;
+let lastTheme = 'paper';
+const tplRadio = form.querySelector('[name=theme][value=custom]');
+// first pick fires change (mouse or keyboard); picking again while already selected only fires click
+$('#tplcard').addEventListener('click', (e) => { if (e.target.type !== 'radio' && tplRadio.checked) tplIn.click(); });
+form.addEventListener('change', (e) => { if (e.target.name === 'theme') e.target.value === 'custom' ? tplIn.click() : (lastTheme = e.target.value); });
+const tplBack = () => { if (!tplFile) form.querySelector(`[name=theme][value=${lastTheme}]`).checked = true; };
+tplIn.addEventListener('cancel', tplBack);
+tplIn.onchange = () => {
+  const f = tplIn.files[0]; tplIn.value = '';
+  if (!f) return tplBack();
+  if (!/\.pptx$/i.test(f.name)) { $('#formerr').textContent = 'The template has to be a .pptx file.'; return tplBack(); }
+  tplFile = f; $('#tplname').textContent = f.name; $('#tplname').title = f.name; $('#tplsw').classList.add('has'); $('#formerr').textContent = '';
+  tplRadio.checked = true;
+  form.querySelector('[name=kind][value=slides]').checked = true; $('#golabel').textContent = 'Generate slides';
+};
 form.addEventListener('change', (e) => { if (e.target.name === 'kind') $('#golabel').textContent = e.target.value === 'slides' ? 'Generate slides' : 'Generate report'; });
 document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !$('#go').disabled) form.requestSubmit(); });
 
@@ -362,7 +389,12 @@ form.addEventListener('submit', (e) => {
   const fd = new FormData();
   files.forEach((f) => fd.append('files[]', f, f.name));
   if (url) fd.append('repoUrl', url);
-  for (const k of ['kind', 'theme']) fd.append(k, form.querySelector(`[name=${k}]:checked`).value);
+  for (const k of ['kind', 'theme']) fd.append(k, checked(k));
+  if (checked('theme') === 'custom') {
+    if (!tplFile) { $('#formerr').textContent = 'Choose a .pptx template, or pick Paper or Midnight.'; return; }
+    if (checked('kind') !== 'slides') { $('#formerr').textContent = 'PowerPoint templates are for slides. Switch the format to Slides.'; return; }
+    fd.append('template', tplFile, tplFile.name);
+  }
   for (const k of ['problem', 'learned', 'next']) fd.append(k, form.elements[k].value);
 
   feed.innerHTML = ''; $('#formerr').textContent = ''; $('#jobid').textContent = '';

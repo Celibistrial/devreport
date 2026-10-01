@@ -54,7 +54,7 @@ function parseMultipart(buf, contentType) {
     const body = buf.slice(headEnd + 4, next);
     const name = /name="([^"]*)"/i.exec(head)?.[1];
     const filename = /filename="([^"]*)"/i.exec(head)?.[1];
-    if (filename !== undefined) { if (filename) files.push({ filename, data: body }); }
+    if (filename !== undefined) { if (filename) files.push({ name, filename, data: body }); }
     else if (name) fields[name] = body.toString('utf8');
     pos = next + 2;
   }
@@ -175,7 +175,7 @@ async function setStatus(jobDir, status) {
   await fsp.writeFile(f, JSON.stringify({ ...j, status }, null, 2));
 }
 
-async function pipeline(id, jobDir, { zips, repoUrl, kind, theme }) {
+async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
   const inputDir = path.join(jobDir, 'input');
   try {
     await setStatus(jobDir, 'running');
@@ -207,6 +207,17 @@ async function pipeline(id, jobDir, { zips, repoUrl, kind, theme }) {
       const n = facts.charts?.length || 0, r = facts.repo;
       step(id, 'collect', `Found ${r ? r.commits + ' commits, ' : ''}${n} chart${n === 1 ? '' : 's'} worth of data`);
     } catch { /* facts summary is cosmetic */ }
+
+    if (template) {
+      step(id, 'template', `Reading your template ${template}`);
+      let t;
+      try {
+        await run(process.execPath, [path.join(ROOT, 'pptx.js'), path.join(jobDir, 'template.pptx'), path.join(jobDir, 'template')], { timeout: 60000 });
+        t = JSON.parse(await fsp.readFile(path.join(jobDir, 'template', 'template.json'), 'utf8'));
+      } catch (e) { throw new Error('Template: ' + String(e.stderr || e.message).trim().split('\n').pop()); }
+      const fonts = [...new Set([t.fonts.major?.name, t.fonts.minor?.name].filter(Boolean))].join(' / ') || 'no fonts';
+      step(id, 'template', `Template: ${Object.keys(t.colors).length} colours, ${fonts}, ${t.media.length} image${t.media.length === 1 ? '' : 's'}`);
+    }
 
     step(id, 'think', `Handing off to Claude Code (${kind}, ${theme} theme)`);
     const { code, stderr, resultText, cost } = await runClaude(id, jobDir, kind, theme);
@@ -249,17 +260,22 @@ async function createJob(req, res) {
   try {
     const { fields, files } = parseMultipart(await readBody(req), req.headers['content-type']);
     const kind = fields.kind === 'slides' ? 'slides' : 'report';
-    const theme = fields.theme === 'midnight' ? 'midnight' : 'paper';
+    // a .pptx template only applies to slides; for a report it's ignored
+    const pptx = kind === 'slides' && fields.theme === 'custom' ? files.find((f) => f.name === 'template') : null;
+    if (pptx && !/\.pptx$/i.test(pptx.filename)) throw new Error('The template must be a .pptx file');
+    const theme = pptx ? 'custom' : fields.theme === 'midnight' ? 'midnight' : 'paper';
     const repoUrl = normalizeRepoUrl(fields.repoUrl);
-    if (!files.length && !repoUrl) throw new Error('Add some files, a zip or a GitHub URL');
+    const inputs = files.filter((f) => f.name !== 'template');
+    if (!inputs.length && !repoUrl) throw new Error('Add some files, a zip or a GitHub URL');
 
     const id = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
     const jobDir = path.join(JOBS, id), inputDir = path.join(jobDir, 'input');
     await fsp.mkdir(inputDir, { recursive: true });
-    await fsp.writeFile(path.join(jobDir, 'job.json'), JSON.stringify({ id, kind, theme, status: 'queued', createdAt: new Date().toISOString() }, null, 2));
+    await fsp.writeFile(path.join(jobDir, 'job.json'), JSON.stringify({ id, kind, theme, ...(pptx && { template: true }), status: 'queued', createdAt: new Date().toISOString() }, null, 2));
+    if (pptx) await fsp.writeFile(path.join(jobDir, 'template.pptx'), pptx.data);
 
     const taken = new Set(), zips = [];
-    for (const f of files) {
+    for (const f of inputs) {
       const name = safeName(f.filename, taken);
       await fsp.writeFile(path.join(inputDir, name), f.data);
       if (/\.zip$/i.test(name)) zips.push(name);
@@ -270,10 +286,10 @@ async function createJob(req, res) {
 
     jobs.set(id, { events: [], clients: new Set(), finished: false });
     busy = id;
-    const got = [files.length && `${files.length} file${files.length === 1 ? '' : 's'}`, repoUrl && 'a GitHub link'].filter(Boolean).join(' and ');
+    const got = [inputs.length && `${inputs.length} file${inputs.length === 1 ? '' : 's'}`, repoUrl && 'a GitHub link'].filter(Boolean).join(' and ');
     step(id, 'upload', `Received ${got}${qs.length ? `, ${qs.length} answer${qs.length === 1 ? '' : 's'}` : ''}`);
     json(res, 201, { id });
-    pipeline(id, jobDir, { zips, repoUrl, kind, theme });
+    pipeline(id, jobDir, { zips, repoUrl, kind, theme, template: pptx && path.basename(pptx.filename) });
   } catch (e) {
     busy = null;
     json(res, e.status || 400, { error: e.message });
