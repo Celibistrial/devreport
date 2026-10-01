@@ -185,8 +185,19 @@ Ship 2 presets (Paper, Midnight). Minimal and Campus only if there's time left. 
 - [x] Idea, scope and architecture decided
 - [x] Repo dir created (`~/dev/devreport`), git initialized
 - [x] Plan reviewed (Fable): cut gap-check call → fixed form, 2 themes, no showcase site, PPT import last
-- [ ] Part 0: 20-min proof ← **next**
-- [ ] Part 1: collector + tests
+- [x] Part 0: proof — skills load from `jobs/<id>/` cwd, tectonic runs under the allowlist; themes load via `\usepackage{../../.claude/skills/devreport/themes/devreport-<theme>}`
+- [x] Part 1: collector + tests (`node --test test.js`, not bare `node --test`: that also runs tests inside cloned jobs)
+- [x] Part 2: devreport skill, tested chart snippets, prompt.txt (first line = ALLOWED_TOOLS)
+- [x] Part 3–4: server.js + index.html (zip/GitHub intake, fixed questions form, SSE feed with cost)
+- [x] Part 5: Paper + Midnight themes
+- [x] E2E through the real UI: GitHub link → report (~2 min), zip → slides (~1 min, ~$0.5)
+- [x] Part 6: dogfood samples in `samples/` (regenerate before submitting so they show the full day of commits)
+- [ ] README "What I learned" ← owner writes this
+- [ ] Push repo public (check `gh auth status` → Celibistrial first)
+- [ ] Part 7: PPT import (late stage)
+- [ ] Demo video + Devpost form
+
+Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a top-level folder unpack to `input/x/x/` (cosmetic).
 
 ## Interface contract (shared by all parts)
 
