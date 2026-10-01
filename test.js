@@ -63,7 +63,7 @@ test('collects git, logs, tables, notes, images', () => {
 
   assert.deepStrictEqual(facts.logs, { lines: 5, errors: 3, warnings: 1 });
   assert.deepStrictEqual(csv(job, 'errors_over_time.csv'), ['bucket,errors,warnings', '2026-09-28,2,0', '2026-09-29,1,1']);
-  assert.strictEqual(csv(job, 'top_errors.csv')[1], 'ERROR db timeout after <n>ms id=<hex>,2');
+  assert.strictEqual(csv(job, 'top_errors.csv')[1], 'db timeout after <n>ms id=<hex>,2');
 
   assert.deepStrictEqual(csv(job, 'table_sales.csv'), ['month,revenue', '2026-07-01,100', '2026-08-01,1200', '2026-09-01,900']);
   const sales = facts.charts.find(c => c.csv === 'data/table_sales.csv');
@@ -100,4 +100,14 @@ test('empty and missing input never throws', () => {
   const facts = collect(job);
   assert.deepStrictEqual(facts.charts, []);
   assert.strictEqual(facts.repo, null);
+});
+
+test('names an upload-only project after the folder the files share', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  const dir = path.join(job, 'input', 'studybuddy', 'studybuddy');
+  fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'notes.md'), 'devlog');
+  fs.writeFileSync(path.join(dir, 'shots', 'a.png'), PNG);
+  fs.writeFileSync(path.join(job, 'input', 'answers.md'), 'For students.');
+  assert.strictEqual(collect(job).project.name, 'studybuddy');
 });

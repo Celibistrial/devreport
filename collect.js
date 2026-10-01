@@ -196,7 +196,7 @@ function normalizeError(line) {
     .replace(/\b(?=[0-9a-f]*\d)[0-9a-f]{8,}\b/gi, '<hex>')
     .replace(/(?:[A-Za-z]:)?(?:[\w.-]*\/)+[\w.-]+/g, '<path>')
     .replace(/\d+(\.\d+)?/g, '<n>')
-    .replace(/^[\s:,\-\]|]+/, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    .replace(/^[\s:,\-\]|]+/, '').replace(/^\[?(ERROR|ERR|FATAL|CRIT(ICAL)?)\]?:?\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
 }
 function logOutputs(texts, dataDir, charts) {
   const stats = { lines: 0, errors: 0, warnings: 0 }, events = [], patterns = {};
@@ -246,7 +246,6 @@ function tableOutput(rel, header, rows, dataDir, charts, used) {
   });
   const col = t => header[types.indexOf(t)];
   const num = col('number'), date = col('date'), cat = col('category');
-  const title = path.basename(rel);
   let chart = null;
   if (date && num) chart = { kind: 'line', x: date, y: num };
   else if (cat && num) {
@@ -255,7 +254,9 @@ function tableOutput(rel, header, rows, dataDir, charts, used) {
     const pie = cats.size === rows.length && rows.length <= 6 && rows.every(r => +r[ni] >= 0);
     chart = { kind: pie ? 'pie' : 'bar', x: cat, y: num };
   } else if (num && types.filter(t => t === 'number').length === 1) chart = { kind: 'hist', x: num, y: num };
-  if (chart && n >= 2) charts.push({ csv: `data/${name}.csv`, ...chart, title });
+  if (!chart || n < 2) return;
+  const title = chart.kind === 'line' ? `${chart.y} over time` : chart.kind === 'hist' ? `Distribution of ${chart.y}` : `${chart.y} by ${chart.x}`;
+  charts.push({ csv: `data/${name}.csv`, ...chart, title: title[0].toUpperCase() + title.slice(1) + ` (${path.basename(rel)})` });
 }
 
 // ---------- main ----------
@@ -281,8 +282,13 @@ function collect(jobDir) {
 
   for (const r of repos) safe('git ' + r, () => commits.push(...gitLog(abs(r))));
 
-  // Project name + README: first repo, else input root.
-  const root = repos[0] || 'input';
+  // Project name + README: first repo, else the folder all uploads share (e.g. input/<zip>/<project>).
+  let root = repos[0];
+  if (!root) {
+    const dirs = files.filter(f => f.startsWith('input/') && f !== 'input/answers.md').map(f => path.dirname(f));
+    root = dirs[0] || 'input';
+    for (const d of dirs) while (root !== 'input' && d !== root && !d.startsWith(root + '/')) root = path.dirname(root);
+  }
   safe('project', () => {
     const readme = files.find(f => path.dirname(f) === root && /^readme(\.md|\.txt)?$/i.test(path.basename(f)));
     const readmeText = readme && readText(abs(readme));
