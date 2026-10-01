@@ -52,7 +52,7 @@ test('collects git, logs, tables, notes, images', () => {
 
   assert.strictEqual(facts.project.name, 'widget-app');
   assert.match(facts.project.readme, /A widget/);
-  assert.deepStrictEqual(facts.repo, { commits: 3, authors: ['Ada'], firstDate: '2026-09-28', lastDate: '2026-09-30', linesAdded: 7, linesRemoved: 1 });
+  assert.deepStrictEqual(facts.repo, { commits: 3, authors: ['Ada'], firstDate: '2026-09-28', lastDate: '2026-09-30', linesAdded: 7, linesRemoved: 1, activeDays: 2, days: 3 });
   assert.deepStrictEqual(csv(job, 'commits_per_day.csv'), ['date,commits,added,removed', '2026-09-28,2,5,0', '2026-09-29,0,0,0', '2026-09-30,1,2,1']);
   const hours = csv(job, 'commit_hours.csv');
   assert.strictEqual(hours.length, 25);

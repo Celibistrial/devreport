@@ -25,7 +25,8 @@ const GENERATED = /(\.min\.(js|css)$|\.map$|(^|\/)(dist|build|vendor|target|out|
 const MONTHS = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
 
 // ---------- helpers ----------
-const csvCell = v => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+// pgfplots ignores CSV quoting, so strip commas/quotes/newlines from cells instead of quoting them
+const csvCell = v => (v == null ? '' : String(v)).replace(/[,\n\r]+/g, ' ').replace(/"/g, "'");
 function writeCsv(dir, name, header, rows) {
   fs.writeFileSync(path.join(dir, name), [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
   return rows.length;
@@ -165,6 +166,7 @@ function gitOutputs(commits, dataDir, charts) {
   return {
     commits: commits.length, authors: [...new Set(commits.map(c => c.author))],
     firstDate: sorted[0], lastDate: sorted[sorted.length - 1], linesAdded: added, linesRemoved: removed,
+    activeDays: sorted.length, days: sorted.length && Math.round((Date.parse(sorted[sorted.length - 1]) - Date.parse(sorted[0])) / 864e5) + 1,
   };
 }
 
@@ -314,8 +316,12 @@ function collect(jobDir) {
     const ext = path.extname(f).toLowerCase();
     if (IMG_EXT.has(ext)) {
       if (facts.images.length >= MAX_IMAGES) return;
-      const id = 'img' + (facts.images.length + 1), out = `images/${id}${ext}`;
-      fs.copyFileSync(abs(f), abs(out));
+      const id = 'img' + (facts.images.length + 1);
+      // tectonic renders 16-bit PNGs blank with no error; re-encode those to 8-bit JPEG (sips = macOS only)
+      const is16 = ext === '.png' && fs.readFileSync(abs(f)).subarray(24, 25)[0] === 16;
+      let out = `images/${id}${ext}`;
+      if (is16) try { execFileSync('sips', ['-s', 'format', 'jpeg', abs(f), '--out', abs(`images/${id}.jpg`)], { stdio: 'ignore' }); out = `images/${id}.jpg`; } catch {}
+      if (out.endsWith(ext)) fs.copyFileSync(abs(f), abs(out));
       facts.images.push({ id, file: out, original: f });
       return;
     }
