@@ -1,0 +1,153 @@
+% devreport-paper: serif, cream, academic. Works with article and beamer (XeTeX/tectonic).
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-paper}[2026/10/02 devreport Paper theme]
+
+\RequirePackage{amssymb}
+\RequirePackage{fontspec}
+\RequirePackage{xcolor}
+\RequirePackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+\pgfplotsset{compat=1.18}
+\RequirePackage{pgf-pie}
+\RequirePackage{booktabs}
+\RequirePackage{graphicx}
+
+% ---- palette (shared names across all devreport themes) ----
+\definecolor{drBg}{HTML}{F8F4EA}
+\definecolor{drInk}{HTML}{2A2420}
+\definecolor{drMuted}{HTML}{7A6F63}
+\definecolor{drGrid}{HTML}{E4DCCB}
+\definecolor{drAccent}{HTML}{9B2F1F}   % oxblood
+\definecolor{drAccentB}{HTML}{2F5D62}  % deep teal
+\definecolor{drAccentC}{HTML}{C08A2E}  % ochre
+\definecolor{drAccentD}{HTML}{5B4B8A}  % plum
+\definecolor{drAccentE}{HTML}{6E8B3D}  % olive
+\definecolor{drPanel}{HTML}{EFE8D8}
+
+% ---- fonts (all ship in the tectonic bundle) ----
+\setmainfont{texgyrepagella}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic,Numbers=OldStyle]
+\newfontfamily\drNumFont{texgyrepagella}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,Numbers=Lining]
+\setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Medium,ItalicFont=*-LightItalic,BoldItalicFont=*-MediumItalic,Scale=0.92]
+\setmonofont{FiraMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.86]
+
+% ---- charts ----
+\pgfplotscreateplotcyclelist{devreport}{%
+  {drAccent,mark=*,mark options={fill=drAccent}},
+  {drAccentB,mark=square*,mark options={fill=drAccentB}},
+  {drAccentC,mark=triangle*,mark options={fill=drAccentC}},
+  {drAccentD,mark=diamond*,mark options={fill=drAccentD}}}
+\pgfplotscreateplotcyclelist{devreportbar}{{drAccent,fill=drAccent},{drAccentB,fill=drAccentB},{drAccentC,fill=drAccentC},{drAccentD,fill=drAccentD}}
+\pgfplotsset{
+  every axis/.append style={
+    font=\sffamily\footnotesize, cycle list name=devreport,
+    axis line style={drMuted, line width=0.4pt}, tick style={drMuted},
+    axis x line*=bottom, axis y line*=left,
+    ymajorgrids, grid style={drGrid, line width=0.4pt},
+    every axis label/.append style={drMuted},
+    tick label style={drInk}, title style={font=\rmfamily\itshape\small, drInk},
+    legend style={draw=none, fill=none, font=\sffamily\scriptsize},
+    width=0.92\linewidth, height=0.42\linewidth, scaled y ticks=false,
+    enlarge x limits=0.04,
+  },
+  every axis plot/.append style={line width=1.1pt, mark size=1.6pt},
+  drbar/.style={ybar, cycle list name=devreportbar, bar width=12pt, every axis plot/.append style={fill opacity=0.9, draw=none}},
+  drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, every axis plot/.append style={draw=none}},
+}
+\newcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drGrid}
+\RequirePackage{pgfplotstable}
+% \drsafecats: make _ # & $ ^ % ~ printable before reading CSV labels (use inside a group)
+\newcommand{\drsafecats}{\catcode`\_=12 \catcode`\#=12 \catcode`\&=12 \catcode`\$=12 \catcode`\^=12 \catcode`\%=12 \catcode`\~=12 }
+% \drpie[pgf-pie options]{csv}{label column}{value column}: pie read from a CSV, no typed numbers
+\newcommand{\drpie}[4][]{\begingroup\drsafecats
+  \pgfplotstableread[col sep=comma]{#2}\drPieTable
+  \pgfplotstablegetrowsof{\drPieTable}\pgfmathtruncatemacro\drN{\pgfplotsretval-1}%
+  \gdef\drPieList{}%
+  \foreach \i in {0,...,\drN}{%
+    \pgfplotstablegetelem{\i}{#4}\of\drPieTable\let\drV\pgfplotsretval
+    \pgfplotstablegetelem{\i}{#3}\of\drPieTable\let\drL\pgfplotsretval
+    \ifx\drPieList\empty\xdef\drPieList{\drV/\unexpanded\expandafter{\drL}}%
+    \else\xdef\drPieList{\unexpanded\expandafter{\drPieList},\drV/\unexpanded\expandafter{\drL}}\fi}%
+  \begin{tikzpicture}\edef\x{\noexpand\pie[sum=auto,text=legend,radius=2.1,color={\drPieColors},#1]{\unexpanded\expandafter{\drPieList}}}\x\end{tikzpicture}\endgroup}
+
+% ---- KPI tile: \drkpi{1,204}{commits} ----
+\newcommand{\drkpi}[2]{%
+  \begin{minipage}[t]{0.23\linewidth}\centering
+  {\drNumFont\fontsize{22}{24}\selectfont\color{drAccent}#1}\\[2pt]
+  {\sffamily\scriptsize\color{drMuted}\MakeUppercase{#2}}\end{minipage}}
+
+\makeatletter
+\@ifclassloaded{beamer}{%
+  % ================= BEAMER =================
+  \usefonttheme{serif}
+  \setbeamertemplate{navigation symbols}{}
+  \setbeamercolor{background canvas}{bg=drBg}
+  \setbeamercolor{normal text}{fg=drInk}
+  \setbeamercolor{structure}{fg=drAccent}
+  \setbeamercolor{frametitle}{fg=drInk}
+  \setbeamercolor{title}{fg=drInk}
+  \setbeamercolor{subtitle}{fg=drAccent}
+  \setbeamercolor{alerted text}{fg=drAccent}
+  \setbeamercolor{block title}{fg=drAccent,bg=drPanel}
+  \setbeamercolor{block body}{fg=drInk,bg=drPanel}
+  \setbeamercolor{caption name}{fg=drAccent}
+  \setbeamerfont{caption}{size=\scriptsize}
+  \setbeamertemplate{caption}[numbered]
+  \setbeamertemplate{itemize item}{\color{drAccent}\raisebox{0.15ex}{\scriptsize$\blacksquare$}}
+  \setbeamertemplate{itemize subitem}{\color{drAccentB}\textendash}
+  \setbeamertemplate{enumerate item}{\color{drAccent}\drNumFont\insertenumlabel.}
+  \setbeamerfont{frametitle}{size=\Large,shape=\itshape}
+  \setbeamertemplate{frametitle}{%
+    \vskip1.2em\hskip0.2em{\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par
+    \hskip0.2em{\color{drAccent}\rule{2.2em}{1.2pt}}\vskip0.2em}
+  \setbeamertemplate{footline}{%
+    \hskip1.2em{\sffamily\tiny\color{drMuted}\MakeUppercase{\insertshorttitle}}\hfill
+    {\drNumFont\scriptsize\color{drAccent}\insertframenumber}\hskip1.2em\vskip0.9em}
+  \setbeamertemplate{title page}{%
+    \vfill
+    {\sffamily\scriptsize\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.6em
+    {\usebeamerfont{title}\fontsize{30}{32}\selectfont\itshape\color{drInk}\inserttitle}\par\vskip0.4em
+    {\color{drAccent}\rule{3em}{1.5pt}}\par\vskip0.8em
+    \ifx\insertsubtitle\@empty\else{\large\color{drMuted}\insertsubtitle}\par\vskip0.8em\fi
+    {\sffamily\footnotesize\color{drInk}\insertauthor}\par
+    {\sffamily\footnotesize\color{drMuted}\insertdate}\par
+    \vfill}
+  \pgfplotsset{every axis/.append style={width=0.9\linewidth, height=0.66\textheight}}
+}{%
+  % ================= ARTICLE =================
+  \RequirePackage[a4paper,margin=2.6cm,top=2.4cm,bottom=2.8cm]{geometry}
+  \RequirePackage{pagecolor}
+  \pagecolor{drBg}\color{drInk}
+  \RequirePackage[font={small,it},labelfont={sf,bf,color=drAccent,up},labelsep=quad,skip=6pt]{caption}
+  \RequirePackage{titlesec}
+  \titleformat{\section}{\Large\itshape\color{drInk}}{\llap{\drNumFont\color{drAccent}\upshape\thesection\hskip0.8em}}{0pt}{}[\vskip-0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}]
+  \titleformat{\subsection}{\sffamily\small\bfseries\color{drAccentB}}{\thesubsection}{0.8em}{\MakeUppercase}
+  \titlespacing*{\section}{0pt}{2.2em}{0.9em}
+  \titlespacing*{\subsection}{0pt}{1.4em}{0.4em}
+  \RequirePackage{enumitem}
+  \setlist[itemize]{label={\color{drAccent}\raisebox{0.2ex}{\tiny$\blacksquare$}},leftmargin=1.4em,itemsep=2pt}
+  \setlist[enumerate]{label={\color{drAccent}\drNumFont\arabic*.},leftmargin=1.6em,itemsep=2pt}
+  \RequirePackage{fancyhdr}
+  \pagestyle{fancy}\fancyhf{}
+  \renewcommand{\headrulewidth}{0pt}
+  \fancyhead[L]{\sffamily\scriptsize\color{drMuted}\MakeUppercase{\@title}}
+  \fancyhead[R]{\sffamily\scriptsize\color{drMuted}\@date}
+  \fancyfoot[C]{\drNumFont\small\color{drAccent}\thepage}
+  \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\drNumFont\small\color{drAccent}\thepage}}
+  \linespread{1.08}
+  \setlength{\parskip}{0.35em}
+  \providecommand{\subtitle}[1]{\gdef\@subtitle{#1}}
+  \gdef\@subtitle{}
+  \renewcommand{\maketitle}{%
+    \thispagestyle{plain}
+    \vspace*{1.5em}
+    {\sffamily\scriptsize\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.8em
+    {\fontsize{34}{38}\selectfont\itshape\color{drInk}\@title\par}\vskip0.6em
+    {\color{drAccent}\rule{3.5em}{1.6pt}}\par\vskip0.8em
+    \ifx\@subtitle\@empty\else{\large\color{drMuted}\@subtitle\par}\vskip0.6em\fi
+    {\sffamily\small\color{drInk}\@author}\hfill{\sffamily\small\color{drMuted}\@date}\par
+    \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\vskip1.6em}
+  \RequirePackage{hyperref}
+  \hypersetup{colorlinks,linkcolor=drAccent,urlcolor=drAccentB,citecolor=drAccent,pdfborder={0 0 0}}
+}
+\makeatother
+\endinput
