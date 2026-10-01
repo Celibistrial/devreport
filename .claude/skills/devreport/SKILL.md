@@ -11,7 +11,7 @@ You have Read, Write, Edit, Skill and `tectonic` only. There is no other shell, 
 
 ## 1. Read the inputs
 
-1. `job.json`: `kind` is `report` or `slides`, and `theme` is `paper` or `midnight`.
+1. `job.json`: `kind` is `report` or `slides`, and `theme` is `paper`, `midnight` or `custom`. For `custom` (the user uploaded a PowerPoint template, slides only), Read `template.md` in this skill folder now and build `template/devreport-custom.sty` first, as it says.
 2. `facts.json`: project name and README, repo stats, log stats, `charts[]`, `notes[]` (text is already inside), `answers` (the user's answers to the 3 questions), and `images[]`.
 3. `charts.md` in this skill folder: tested pgfplots snippets for each chart kind. Read it before you write any chart.
 4. Only Read a file under `input/` if facts.json points to it and the text there was cut off and you need more. Read each image in `facts.images` so the caption describes what it actually shows.
@@ -41,7 +41,7 @@ Use every chart in `facts.charts` once, in the section where it fits best. Use e
 ```latex
 \usepackage{../../.claude/skills/devreport/themes/devreport-<theme>}
 ```
-Don't copy the .sty file. The theme loads fontspec, fonts, xcolor, pgfplots (with dateplot), pgfplotstable, pgf-pie, booktabs and graphicx. For articles it also loads geometry, titlesec, caption, enumitem, fancyhdr and hyperref. Don't load those again, don't set fonts or colours, and don't use `\usetheme`. The colour names are `drAccent drAccentB drAccentC drAccentD drInk drMuted drBg drPanel drGrid`. The theme also gives you `\drkpi{value}{label}`, `\drpie{csv}{label}{value}` and `\drsafecats`.
+Don't copy the .sty file. For `theme: custom` it's `\usepackage{template/devreport-custom}` instead (see template.md). The theme loads fontspec, fonts, xcolor, pgfplots (with dateplot), pgfplotstable, pgf-pie, booktabs and graphicx. For articles it also loads geometry, titlesec, caption, enumitem, fancyhdr and hyperref. Don't load those again, don't set fonts or colours, and don't use `\usetheme`. The colour names are `drAccent drAccentB drAccentC drAccentD drInk drMuted drBg drPanel drGrid`. The theme also gives you `\drkpi{value}{label}`, `\drpie{csv}{label}{value}` and `\drsafecats`.
 
 **Report** (`kind: report`): `\documentclass[11pt]{article}`, then `\title`, `\subtitle{one line}` (the theme defines it), `\author{authors from facts.repo.authors, or omit}`, `\date{month year of lastDate}`, `\maketitle`, a KPI row (`\drkpi`, see charts.md), then the sections. Aim for 3–6 pages. No table of contents. No abstract heading; the subtitle and first paragraph do that job.
 
