@@ -23,7 +23,7 @@ Drop messy dev logs, notes, git history and screenshots into a browser page and 
 3. **Charts can't show made-up data.** pgfplots plots CSV files computed by `collect.js` (`\addplot table {data/x.csv}`). Claude never types a number into a chart.
 4. **Backend = Claude Code headless** (`claude -p`), not the Claude API. There's no API key.
 5. **No public live generation.** Hosting it so strangers run on the owner's Claude Code subscription breaks Anthropic's terms, and the only server available is a tiny shared box. Anyone who clones the repo runs it with **their own** Claude Code login.
-6. **Live link = static showcase** at a static site: pre-made sample reports (including one devreport generated about itself), downloadable PDFs and install steps.
+6. **No live site.** Sample PDFs (including one devreport generated about itself) are committed to the repo under `samples/` and linked from the README.
 7. **Dogfood demo finale:** run devreport on its own repo so it generates its own report and Devpost write-up.
 8. **Repo:** public, owned by GitHub account **Celibistrial**.
    - Local commits use the email `82810795+Celibistrial@users.noreply.github.com`.
@@ -33,8 +33,11 @@ Drop messy dev logs, notes, git history and screenshots into a browser page and 
 ```
 Browser                       server.js (Node stdlib http)            Claude Code
 ───────                       ────────────────────────────            ───────────
-drop files + notes  ──POST──▶ save to jobs/<id>/input/
+drop files / .zip   ──POST──▶ save to jobs/<id>/input/ (unzip .zip)
+or GitHub URL                 or git clone → jobs/<id>/input/repo/
 pick Report | Slides          run collect.js → data/*.csv
+answer 3 fixed      ──POST──▶ save answers.md to input/
+optional questions
 pick theme / upload .pptx     run pptx.js → template/ (if pptx)
                               spawn claude -p in jobs/<id>/ ────────▶ read inputs
 live progress feed  ◀──SSE─── forward stream-json steps     ◀──────── write main.tex
@@ -81,6 +84,8 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 | CSV / JSON (arrays of objects) | Detect each column's type: date / number / category | chart chosen by the rules below |
 | `.md`, `.txt` notes | Passed through raw (truncated) | none |
 | images | Copied into the job and given IDs | placed and captioned by Claude |
+| `.zip` | Unzipped by the server into `input/`, then each file goes through the rows above | (per file) |
+| GitHub repo / any repo folder | `git log` from the repo; README and `package.json`-style manifests passed through as notes; lines of code per language from file extensions | everything from the git row, plus language breakdown (pie) |
 
 **Chart picker:**
 - date + number → line
@@ -88,9 +93,37 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 - single number column → histogram
 - 6 or fewer categories as parts of a whole → pie/doughnut
 
+## Intake and gap check
+
+**Accepted inputs:** loose files, a `.zip`, or a public GitHub URL (or any mix).
+
+- **Zip:** cap upload at ~50 MB, then sum sizes from `unzip -l` and reject if the extracted total is over ~200 MB (zip bomb). `unzip -q x.zip -d input/`. Info-ZIP skips `../` paths by default; still reject any entry that resolves outside `input/`. Afterwards `find input -type l -delete` so Claude's `Read` can't follow a symlink out of the job.
+- **Untrusted `.git/`:** a zip may contain a repo. Only ever run `git log` on it, with `GIT_CONFIG_NOSYSTEM=1`; never `git status` or anything that runs hooks.
+- **GitHub URL:** strip a trailing `.git`, `/tree/<branch>...` and `/`, then it must match `^https://github\.com/[\w.-]+/[\w.-]+$`. Run `git clone --single-branch <url> input/repo` via `execFile` (no shell) with `GIT_TERMINAL_PROMPT=0` so a private repo fails fast instead of hanging. Full history is needed for `git log --numstat`. Cap with a timeout (~60 s).
+
+**Questions form** (fixed, not a Claude call — deterministic for the demo, no extra wait):
+
+1. After upload, the UI always shows 3 optional questions: *What problem does it solve and who is it for?*, *What did you learn / what was hard?*, *What's next?*
+2. Answers are saved as `input/answers.md` and treated as notes. Blank answers are fine.
+3. If a slot is still empty, Claude leaves it out; it never makes up facts.
+4. Upgrade later (only if time): a `claude -p --json-schema` gap check that asks only for what's missing, defaulting to "enough" on timeout.
+
+**Content checklist (what a full deck/report needs):**
+
+| Slot | Usually found in |
+|---|---|
+| What it is, one line | README |
+| Problem + who it's for | README, notes |
+| How it works | code structure, README |
+| Results / what works | git log, logs, screenshots |
+| Challenges + what you learned | commit messages ("fix"), error logs, notes |
+| What's next | notes, TODOs |
+
+Problem/audience, lessons learned and what's next are the slots most often missing, which is why the form asks exactly those.
+
 ## Themes
 
-There are 4 presets. Each is one `.sty` usable by both the article and beamer documents:
+Ship 2 presets (Paper, Midnight). Minimal and Campus only if there's time left. Each is one `.sty` usable by both the article and beamer documents:
 
 | Theme | Look |
 |---|---|
@@ -99,7 +132,7 @@ There are 4 presets. Each is one `.sty` usable by both the article and beamer do
 | **Minimal** | Swiss: white space, one accent color |
 | **Campus** | Bold colors, rounded blocks, hackathon energy |
 
-## PPT template import (stretch goal)
+## PPT template import (late stage: only after Parts 1–6 ship)
 
 1. Unzip the `.pptx` and parse:
    - `ppt/theme/theme1.xml`: `a:clrScheme` (hex palette) and `a:fontScheme` (heading/body fonts)
@@ -115,16 +148,19 @@ There are 4 presets. Each is one `.sty` usable by both the article and beamer do
 
 | # | Part | Est. | Running total |
 |---|---|---|---|
-| 1 | `collect.js` + tests | 1 hr | 1 hr |
-| 2 | devreport skill + base templates | 1 hr | 2 hrs |
-| 3 | `server.js` + streaming | 1.5 hrs | 3.5 hrs |
-| 4 | `index.html` UI | 1 hr | 4.5 hrs |
-| 5 | 4 themes | 1 hr | 5.5 hrs |
-| 6 | Dogfood run + README + showcase site | 1 hr | 6.5 hrs |
-| 7 | PPT import (stretch) | 1.5 hrs | 8 hrs |
-| — | Demo video (owner records it) | 1 hr | — |
+| 0 | **Proof first (20 min):** hand-write one `main.tex` + one theme that compiles with a real CSV; run `claude -p --allowedTools ... --output-format stream-json` from `jobs/x/` and confirm project skills load | 0.33 hrs | 0.33 hrs |
+| 1 | `collect.js` + tests (incl. repo folder: languages, README) | 1.25 hrs | 1.6 hrs |
+| 2 | devreport skill + base templates (**Report first**) | 1 hr | 2.6 hrs |
+| 3 | `server.js` + streaming + zip/GitHub intake | 1.5 hrs | 4.1 hrs |
+| 4 | `index.html` UI (incl. URL box + fixed questions form) | 1.25 hrs | 5.35 hrs |
+| 5 | 2 themes (Paper, Midnight); Slides only if done by 6pm IST | 0.5 hrs | 5.85 hrs |
+| 6 | Dogfood run + README (setup, "What I learned", prompt-injection note) + `samples/` PDFs | 1 hr | 6.85 hrs |
+| 7 | PPT import (late stage) | 1.5 hrs | 8.35 hrs |
+| — | Demo video (owner records it) + Devpost form | 1.5 hrs | — |
 
-**Commit after each part.** The commit history is judged.
+**Hard stop building at 7:45pm IST.** Screen-record each part as it starts working so the video exists even if the UI isn't finished. Demo on one fixed, prepared repo, not a random URL.
+
+**Commit after each feature, not just each part.** The commit history is judged. `.gitignore` the `jobs/` folder so uploads never reach the public repo.
 
 ## Environment checked (Oct 2, 2026, ~3am IST)
 
@@ -134,13 +170,12 @@ There are 4 presets. Each is one `.sty` usable by both the article and beamer do
 - `unzip` and `python3` are available.
 - Humanizer skill: `~/.claude/skills/humanizer` → `~/.agents/skills/humanizer`, MIT, v3.0.0
 
-
 ## Demo video outline (3–5 min)
 
 1. **Problem (20s):** a messy folder of logs, notes and screenshots, and nobody wants to write the report.
-2. **Drop it in (30s):** pick Report, pick a theme, hit Generate.
+2. **Drop it in (30s):** paste a GitHub link (or drop a zip), pick Slides, pick a theme. devreport asks 2–3 questions it couldn't answer from the repo; answer them, hit Generate.
 3. **Live feed (40s, sped up):** reading, writing, compile error, fixed, humanizing.
-4. **Result (40s):** the PDF with real charts. Switch to Slides. Show a PPT template being matched.
+4. **Result (40s):** the PDF with real charts. Switch to Slides if built. Show PPT matching only if Part 7 shipped.
 5. **How it works (60s):** collectors → CSV → pgfplots (no fake numbers), the agent compile/fix loop, the locked-down tools.
 6. **Finale (30s):** devreport generates its own report.
 7. **Learned / challenges (30s).** Disclose that Claude Code was used for building and is the runtime.
@@ -149,4 +184,51 @@ There are 4 presets. Each is one `.sty` usable by both the article and beamer do
 
 - [x] Idea, scope and architecture decided
 - [x] Repo dir created (`~/dev/devreport`), git initialized
-- [ ] Part 1: collector + tests ← **next**
+- [x] Plan reviewed (Fable): cut gap-check call → fixed form, 2 themes, no showcase site, PPT import last
+- [ ] Part 0: 20-min proof ← **next**
+- [ ] Part 1: collector + tests
+
+## Interface contract (shared by all parts)
+
+**Job folder** `jobs/<id>/`:
+```
+job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight","status","createdAt"}
+input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md
+data/*.csv      written by collect.js
+images/         images copied by collect.js as img1.png, img2.jpg, ...
+facts.json      written by collect.js
+main.tex/.pdf   written by Claude
+```
+
+**`node collect.js <jobDir>`** (also `module.exports = { collect }`, `collect(jobDir)` returns facts). Reads `input/**`, writes `data/` + `images/` + `facts.json`. Exit 0 even if inputs are thin.
+
+**CSV format:** header row, comma separated, values with commas quoted, numbers plain. Fixed names:
+- `commits_per_day.csv` date,commits,added,removed (date = YYYY-MM-DD)
+- `commit_hours.csv` hour,commits (0–23, all 24 rows)
+- `top_files.csv` file,changes (top 10)
+- `commit_types.csv` type,count (feat/fix/docs/refactor/test/chore/other)
+- `languages.csv` language,lines
+- `errors_over_time.csv` bucket,errors,warnings
+- `top_errors.csv` error,count (top 5, normalized pattern)
+- user CSV/JSON tables: `table_<slug>.csv`
+
+**`facts.json`:**
+```json
+{
+  "project": {"name": "", "readme": "first ~4000 chars or null"},
+  "repo": {"commits": 0, "authors": [], "firstDate": "", "lastDate": "", "linesAdded": 0, "linesRemoved": 0} | null,
+  "logs": {"lines": 0, "errors": 0, "warnings": 0} | null,
+  "charts": [{"csv": "data/commits_per_day.csv", "kind": "line|bar|pie|hist|heatmap", "x": "date", "y": "commits", "title": "Commits per day"}],
+  "notes": [{"file": "input/notes.md", "text": "truncated ~6000 chars"}],
+  "answers": "contents of input/answers.md or null",
+  "images": [{"id": "img1", "file": "images/img1.png", "original": "input/shot.png"}]
+}
+```
+Only emit a chart when its CSV has ≥ 2 data rows.
+
+**Claude call** (server, cwd = `jobs/<id>/`):
+```
+claude -p "<prompt from .claude/skills/devreport/prompt.txt with {{kind}} {{theme}} filled>" \
+  --output-format stream-json --verbose --allowedTools "<from prompt.txt notes>"
+```
+Theme files live in `.claude/skills/devreport/themes/devreport-<theme>.sty`; how they reach the job (copy vs path) is decided by Part 0/2 and written in SKILL.md.
