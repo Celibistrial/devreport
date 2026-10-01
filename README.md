@@ -31,7 +31,7 @@ Requirements: macOS or Linux, Node 20+, [Claude Code](https://claude.com/claude-
 ```bash
 brew install tectonic          # or see https://tectonic-typesetting.github.io
 git clone https://github.com/Celibistrial/devreport && cd devreport
-node --test                    # collector tests
+node --test test.js            # collector tests (bare `node --test` would also run tests inside cloned jobs/)
 node server.js                 # http://127.0.0.1:3000
 ```
 
