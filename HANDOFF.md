@@ -194,7 +194,7 @@ Ship 2 presets (Paper, Midnight). Minimal and Campus only if there's time left. 
 - [x] Part 6: dogfood samples in `samples/` (regenerate before submitting so they show the full day of commits)
 - [ ] README "What I learned" ← owner writes this
 - [ ] Push repo public (check `gh auth status` → Celibistrial first)
-- [ ] Part 7: PPT import (late stage)
+- [x] Part 7: PPT import: `pptx.js` + test, template card in the UI, `template.md` in the skill, sample `samples/slides-custom-template.pdf`
 - [ ] Demo video + Devpost form
 
 Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a top-level folder unpack to `input/x/x/` (cosmetic).
@@ -203,7 +203,8 @@ Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a
 
 **Job folder** `jobs/<id>/`:
 ```
-job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight","status","createdAt"}
+job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"custom","template"?:true,"status","createdAt"}
+template/       pptx.js output when a .pptx was uploaded (slides only): template.json, media/, thumbnail.jpeg
 input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md
 data/*.csv      written by collect.js
 images/         images copied by collect.js as img1.png, img2.jpg, ...

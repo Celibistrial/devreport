@@ -23,6 +23,7 @@ upload / zip / GitHub link
 - **Locked-down agent.** Claude Code runs headless with only `Read,Write,Edit,Bash(tectonic:*),Skill`: no general shell. Uploaded content is treated as data, never instructions.
 - **Safe intake.** Zips are size-checked before extracting (zip bombs), path-escaping entries are rejected, symlinks are deleted. GitHub URLs are validated and cloned without a shell, with a timeout.
 - **Themes.** Paper (serif, academic) and Midnight (dark, neon, terminal). Each is one `.sty` that works for both reports and slides, charts included.
+- **Your own PowerPoint template (slides).** Upload a `.pptx` and `pptx.js` pulls out its colour palette, heading/body fonts, logo, title/body box positions and preview thumbnail into `template/template.json`. Claude writes a matching Beamer theme from that, compiles a test slide, compares it with the thumbnail and adjusts. Sample: [slides from a custom template](samples/slides-custom-template.pdf).
 
 ## Setup
 
@@ -42,7 +43,8 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 | File | Job |
 |---|---|
 | `collect.js` | Deterministic parsing of inputs → `data/*.csv` + `facts.json` |
-| `test.js` | `node:test` tests for the collector |
+| `pptx.js` | `.pptx` template → colours, fonts, layout boxes, media, thumbnail in `template/` |
+| `test.js` | `node:test` tests for the collector and the template extractor |
 | `server.js` | Uploads, zip/GitHub intake, runs the collector and `claude -p`, streams progress over SSE |
 | `index.html` | The whole UI, one file |
 | `.claude/skills/devreport/` | The pipeline Claude follows, tested chart snippets, the prompt, the themes |
@@ -51,6 +53,7 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 ## Limits
 
 - Local only; one job at a time.
+- Template import copies colours, fonts, the logo and rough layout, not shapes, gradients or animations. Fonts that aren't installed fall back to a close TeX Gyre font.
 - PNG screenshots in 16-bit color are re-encoded with `sips`, which is macOS only.
 - Prompt injection: uploaded text goes to an agent that can write files in the job folder. The tool allowlist keeps that contained, but only run it on material you trust.
 
