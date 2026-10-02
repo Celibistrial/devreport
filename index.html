@@ -89,7 +89,7 @@ main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;p
 .shape::before{content:"";position:absolute;left:4px;right:4px;top:5px;height:2px;background:var(--accent);box-shadow:0 5px 0 var(--rule),0 9px 0 var(--rule)}
 .shape.slide::before{right:12px}
 .theme .face{flex-direction:column;align-items:stretch;gap:0;padding:6px 6px 8px}
-.thumb{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;margin-bottom:7px;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
+.thumb{position:relative;display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;margin-bottom:7px;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 .seg.th{grid-template-columns:repeat(4,1fr);gap:8px}
 /* in report mode slides-only themes stay visible but dimmed; picking one switches the format to Slides */
@@ -102,6 +102,38 @@ main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;p
 .theme .face b{padding:0 2px;font-size:13.5px;line-height:1.2}
 .theme .face small{padding:0 2px;font-size:11px;line-height:1.3}
 .thlede{margin:-4px 0 12px;font-size:12.5px;color:var(--muted)}
+/* theme preview: a floating panel on hover/focus; on touch an eye button opens it as a modal */
+.eye{display:none;position:absolute;top:4px;left:4px;width:24px;height:24px;padding:0;place-items:center;border:1px solid var(--rule);border-radius:6px;background:rgba(251,248,242,.92);color:var(--ink);cursor:pointer}
+.eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (hover:none),(max-width:560px){.eye{display:grid}}
+.tcell{position:relative;flex:none}
+.tcell .eye{top:7px;left:7px;width:20px;height:20px;border-radius:5px}
+.tpop{position:fixed;inset:auto;margin:0;padding:0;z-index:50;width:440px;max-width:calc(100vw - 16px);border:1px solid var(--ink);border-radius:14px;background:var(--card);color:var(--ink);box-shadow:8px 8px 0 rgba(22,19,15,.08),0 18px 40px -18px rgba(22,19,15,.3);animation:pop .15s ease}
+.tpop.portrait{width:330px}
+.tpop:modal{inset:0;margin:auto;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto}
+.tpop.portrait:modal{width:min(380px,calc(100vw - 32px))}
+.tpop::backdrop{background:rgba(22,19,15,.45);backdrop-filter:blur(2px)}
+.tpin{padding:10px 10px 14px}
+.tpbig{aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
+.portrait .tpbig{aspect-ratio:1/1.414}
+.tpop.portrait:modal .tpbig{width:min(100%,calc(62dvh / 1.414));margin:0 auto}
+.tpbig img{display:block;width:100%;height:100%;object-fit:contain}
+.tpth{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 12px}
+.tpth button{aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.12);opacity:.55;cursor:pointer;transition:.15s}
+.portrait .tpth{grid-template-columns:repeat(6,1fr)}
+.portrait .tpth button{aspect-ratio:1/1.414}
+.tpth button:hover,.tpth button[aria-current=true]{opacity:1}
+.tpth button[aria-current=true]{box-shadow:0 0 0 1.5px var(--ink)}
+.tpth button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tpth img{display:block;width:100%;height:100%;object-fit:cover}
+.tpmeta{display:flex;align-items:baseline;gap:10px;padding:0 4px}
+.tpmeta h3{margin:0;font:400 26px/1 var(--serif)}
+.tpmeta .tag{margin-left:auto;white-space:nowrap}
+.tpx{flex:none;align-self:center;width:30px;height:30px;padding:0;border:1px solid var(--ink);border-radius:9px;background:var(--card);font-size:17px;line-height:1;cursor:pointer;transition:.15s}
+.tpx:hover{background:var(--ink);color:var(--paper)}
+.tpop:not(:modal) .tpx{display:none}
+.tpop p{margin:6px 4px 0;font-size:13.5px;color:var(--ink2)}
+.tpop .tpcred{margin-top:8px;font:11px/1.3 var(--mono);color:var(--muted)}
 
 /* length: slider + stepper */
 .len{margin-top:10px;border:1px solid var(--rule);background:var(--card);border-radius:12px;padding:12px 12px 12px 14px}
@@ -413,6 +445,14 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 </main>
 </div>
 
+<dialog class="tpop" id="tpop" aria-labelledby="tpname" aria-describedby="tpdesc"><div class="tpin">
+  <div class="tpbig"><img id="tpimg" alt=""></div>
+  <div class="tpth" id="tpth"></div>
+  <div class="tpmeta"><h3 id="tpname"></h3><span class="tag" id="tpkinds"></span><button type="button" class="tpx" id="tpx" aria-label="Close preview" autofocus>×</button></div>
+  <p id="tpdesc"></p>
+  <p class="tpcred" id="tpcred"></p>
+</div></dialog>
+
 <div class="wrap"><footer><span>Runs locally on your own Claude Code login. Uploads stay in jobs/ on this machine.</span><span>LaTeX by tectonic · charts by pgfplots</span></footer></div>
 
 <script>
@@ -421,16 +461,17 @@ const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'),
 const ICON = { ask:'?', answer:'↳', revise:'↻', template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
 let tplFile = null, files = [], es = null, t0 = 0, tick = null, jobId = null, last = null;
 
-// themes: id, name, a few words, formats. Slides-only themes are Beamer themes on the shared dr* macros
+// themes: id, name, a few words, formats, a line for the preview, credit. Slides-only themes are Beamer themes on the shared dr* macros
 const THEMES = [
-  ['paper', 'Paper', 'Serif, cream, academic', 'report slides'],
-  ['midnight', 'Midnight', 'Dark, neon, terminal', 'report slides'],
-  ['metropolis', 'Metropolis', 'Flat, Fira, orange rule', 'slides'],
-  ['moloch', 'Moloch', 'Metropolis fork, dark teal', 'slides'],
-  ['focus', 'Focus', 'Bold navy title bars', 'slides'],
-  ['trigon', 'Trigon', 'Geometric triangles', 'slides'],
-  ['madrid', 'Madrid', 'Classic Beamer blue', 'slides'],
-].map(([id, name, note, kinds]) => ({ id, name, note, kinds }));
+  ['paper', 'Paper', 'Serif, cream, academic', 'report slides', 'Palatino on cream paper, oxblood accents and old-style numerals.', 'devreport original'],
+  ['midnight', 'Midnight', 'Dark, neon, terminal', 'report slides', 'A dark terminal look: mono labels, neon green charts.', 'devreport original'],
+  ['metropolis', 'Metropolis', 'Flat, Fira, orange rule', 'slides', 'Flat and quiet: Fira Sans, dark title bars, an orange progress rule.', 'Metropolis · 6.9k★ on GitHub'],
+  ['moloch', 'Moloch', 'Metropolis fork, dark teal', 'slides', 'The maintained Metropolis fork, here in its dark teal variant.', 'Moloch · 265★ on GitHub'],
+  ['focus', 'Focus', 'Bold navy title bars', 'slides', 'Bold navy bars and small-caps titles on a light grey page.', 'Focus · 545★ on GitHub'],
+  ['trigon', 'Trigon', 'Geometric triangles', 'slides', 'Teal and grey triangles framing the title and every slide.', 'Trigon · on CTAN'],
+  ['madrid', 'Madrid', 'Classic Beamer blue', 'slides', 'Beamer\'s classic: a blue title box and a three-part footer.', 'Madrid · built into Beamer'],
+].map(([id, name, note, kinds, desc, credit]) => ({ id, name, note, kinds, desc, credit }));
+const eye = (t) => `<button type="button" class="eye" aria-label="Preview ${esc(t.name)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
 const preview = (t, kind) => `/previews/${t.id}${kind === 'report' && t.kinds.includes('report') ? '-report' : ''}.png`;
 const themeName = (id) => THEMES.find((t) => t.id === id)?.name || 'Your template';
 const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
@@ -465,8 +506,8 @@ $('#repo').addEventListener('input', () => {
   $('#urlhint').textContent = bad ? 'That should look like owner/repo.' : 'Public repos only. Full history is cloned so commits can be charted.';
 });
 // theme cards, built from THEMES, in front of the "Your template" card
-$('#tplcard').insertAdjacentHTML('beforebegin', THEMES.map((t, i) => `<label class="opt-card theme" data-kinds="${t.kinds}"><input type="radio" name="theme" value="${t.id}"${i ? '' : ' checked'}><span class="face">
-  <span class="thumb"><img src="${preview(t, 'report')}" alt="" loading="lazy" data-t="${t.id}"></span><b>${t.name}</b><small>${t.note}</small></span></label>`).join(''));
+$('#tplcard').insertAdjacentHTML('beforebegin', THEMES.map((t, i) => `<label class="opt-card theme" data-kinds="${t.kinds}" data-pv="${t.id}"><input type="radio" name="theme" value="${t.id}"${i ? '' : ' checked'}><span class="face">
+  <span class="thumb"><img src="${preview(t, 'report')}" alt="" loading="lazy" data-t="${t.id}">${eye(t)}</span><b>${t.name}</b><small>${t.note}</small></span></label>`).join(''));
 // a report only gets the themes that have an article layout; previews follow the format
 function setKind(kind) {
   form.dataset.kind = kind;
@@ -620,8 +661,8 @@ let switchingTheme = false;
 function renderStrip(d) {
   const list = THEMES.filter((t) => t.kinds.includes(d.kind));
   if (d.template) list.push({ id: 'custom', name: 'Template' });
-  $('#tchips').innerHTML = list.map((t) => `<button type="button" class="tchip" data-t="${t.id}" aria-pressed="${t.id === d.theme}" title="${t.id === 'custom' ? 'Your PowerPoint template' : esc(t.name + ': ' + t.note)}">${t.id === 'custom'
-    ? '<span class="sw u has thumb"><span class="fn">.pptx</span></span>' : `<span class="thumb"><img src="${preview(t, d.kind)}" alt=""></span>`}${esc(t.name)}</button>`).join('');
+  $('#tchips').innerHTML = list.map((t) => `<span class="tcell"${t.id === 'custom' ? '' : ` data-pv="${t.id}"`}><button type="button" class="tchip" data-t="${t.id}" aria-pressed="${t.id === d.theme}"${t.id === 'custom' ? ' title="Your PowerPoint template"' : ''}>${t.id === 'custom'
+    ? '<span class="sw u has thumb"><span class="fn">.pptx</span></span>' : `<span class="thumb"><img src="${preview(t, d.kind)}" alt=""></span>`}${esc(t.name)}</button>${t.id === 'custom' ? '' : eye(t)}</span>`).join('');
   $('#tmsg').textContent = ''; $('#tmsg').classList.remove('err');
 }
 $('#tchips').addEventListener('click', async (e) => {
@@ -651,6 +692,76 @@ $('#tchips').addEventListener('click', async (e) => {
   }
   chip.classList.remove('loading'); chips.forEach((c) => { c.disabled = false; }); switchingTheme = false;
 });
+// theme preview: hover or keyboard focus on a [data-pv] card shows a floating panel beside it; the eye button opens it as a modal
+const tpop = $('#tpop'), noMotion = matchMedia('(prefers-reduced-motion: reduce)'), seen = new Set();
+let pvShow, pvHide, pvCycle, pvFor = null, pvUrls = [], pvPage = 0, pvLabel = '';
+const pvPages = (t, kind) => kind === 'report' && t.kinds.includes('report') ? [1, 2].map((i) => `/previews/${t.id}-report-${i}.jpg`) : [1, 2, 3, 4].map((i) => `/previews/${t.id}-${i}.jpg`);
+const pvKind = (card) => card.closest('#f') ? form.dataset.kind : last?.kind || 'slides';
+const preload = (urls) => urls.forEach((u) => { if (!seen.has(u)) { seen.add(u); new Image().src = u; } });
+function pvFill(card) {
+  const t = THEMES.find((x) => x.id === card.dataset.pv), kind = pvKind(card);
+  pvUrls = pvPages(t, kind); preload(pvUrls); pvFor = card;
+  pvLabel = `${t.name} ${pvUrls[0].includes('-report') ? 'report' : 'deck'}`;
+  tpop.classList.toggle('portrait', pvUrls[0].includes('-report'));
+  $('#tpname').textContent = t.name; $('#tpdesc').textContent = t.desc; $('#tpcred').textContent = t.credit;
+  $('#tpkinds').textContent = t.kinds.includes('report') ? 'report + slides' : 'slides only';
+  $('#tpth').innerHTML = pvUrls.map((u, i) => `<button type="button" data-i="${i}" aria-label="Page ${i + 1}"><img src="${u}" alt=""></button>`).join('');
+  pvSet(0);
+}
+function pvSet(i) {
+  pvPage = i; $('#tpimg').src = pvUrls[i]; $('#tpimg').alt = `${pvLabel}, page ${i + 1} of ${pvUrls.length}`;
+  $('#tpth').querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-current', j === i));
+}
+function pvAuto() { clearInterval(pvCycle); if (!noMotion.matches && pvUrls.length > 1) pvCycle = setInterval(() => pvSet((pvPage + 1) % pvUrls.length), 1500); }
+// outside the card's group, so it never covers a sibling card: right of the theme grid (else left), lined up with the card;
+// below the theme strip or grid (else above); if nothing fits, beside the card itself, narrowed to the room there. Clamped to the viewport
+function pvPlace(card) {
+  tpop.style.width = '';
+  const r = card.getBoundingClientRect(), box = card.closest('#themes, #tstrip').getBoundingClientRect(), g = 12, m = 8, vw = innerWidth, vh = innerHeight;
+  let w = tpop.offsetWidth, h = tpop.offsetHeight, x = r.left + r.width / 2 - w / 2, y;
+  const strip = !!card.closest('#tstrip');
+  if (!strip && box.right + g + w <= vw - m) x = box.right + g, y = r.top;
+  else if (!strip && box.left - g - w >= m) x = box.left - g - w, y = r.top;
+  else if (box.bottom + g + h <= vh - m) y = box.bottom + g;
+  else if (box.top - g - h >= m || strip) y = box.top - g - h;
+  else {
+    const right = vw - m - g - r.right, left = r.left - g - m;
+    tpop.style.width = Math.min(w, Math.max(right, left)) + 'px'; w = tpop.offsetWidth; h = tpop.offsetHeight;
+    x = right >= left ? r.right + g : r.left - g - w; y = r.top;
+  }
+  tpop.style.left = Math.max(m, Math.min(x, vw - w - m)) + 'px';
+  tpop.style.top = Math.max(m, Math.min(y, vh - h - m)) + 'px';
+}
+function pvOpen(card) {
+  clearTimeout(pvHide);
+  if (tpop.matches(':modal') || (tpop.open && pvFor === card)) return;
+  clearTimeout(pvShow); preload(pvPages(THEMES.find((x) => x.id === card.dataset.pv), pvKind(card)));
+  pvShow = setTimeout(() => { pvFill(card); tpop.setAttribute('open', ''); pvPlace(card); pvAuto(); }, 150); // open attribute, not show(): show() would steal focus
+}
+const pvClose = () => { clearTimeout(pvShow); clearInterval(pvCycle); if (tpop.open) tpop.close(); pvFor = null; };
+const pvSoon = () => { clearTimeout(pvShow); clearTimeout(pvHide); if (!tpop.matches(':modal')) pvHide = setTimeout(pvClose, 200); };
+document.addEventListener('pointerover', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const c = e.target.closest?.('[data-pv]');
+  if (c && !c.contains(e.relatedTarget)) pvOpen(c); else if (e.target.closest?.('#tpop')) clearTimeout(pvHide);
+});
+document.addEventListener('pointerout', (e) => {
+  const c = e.pointerType === 'mouse' && e.target.closest?.('[data-pv], #tpop');
+  if (c && !c.contains(e.relatedTarget)) pvSoon();
+});
+document.addEventListener('focusin', (e) => { const c = e.target.closest?.('[data-pv]'); if (c && e.target.matches(':focus-visible:not(.eye)')) pvOpen(c); });
+document.addEventListener('focusout', (e) => { if (e.target.closest?.('[data-pv]') && !(e.relatedTarget && e.relatedTarget.closest('[data-pv], #tpop'))) pvSoon(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tpop.open && !tpop.matches(':modal')) pvClose(); });
+document.addEventListener('scroll', () => { if (pvFor && tpop.open && !tpop.matches(':modal')) pvPlace(pvFor); }, true); // follow the card
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.eye'); if (!b) return;
+  e.preventDefault(); e.stopPropagation(); // don't pick the theme or switch the deck
+  pvClose(); pvFill(b.closest('[data-pv]')); tpop.style.cssText = ''; tpop.showModal(); pvAuto(); // drop the hover position
+}, true);
+tpop.addEventListener('close', () => { clearInterval(pvCycle); pvFor = null; });
+tpop.addEventListener('click', (e) => { if (e.target === tpop) tpop.close(); }); // the backdrop
+$('#tpx').onclick = () => tpop.close();
+['pointerover', 'focusin', 'click'].forEach((ev) => $('#tpth').addEventListener(ev, (e) => { const b = e.target.closest('button'); if (b) { clearInterval(pvCycle); pvSet(+b.dataset.i); } }));
 // revision drawer
 const rev = $('#rev'), pgs = $('#pgs');
 const toggleRev = (open = rev.hidden) => { rev.hidden = !open; $('#revopen').setAttribute('aria-expanded', open); if (open) $('#revgen').focus(); };
