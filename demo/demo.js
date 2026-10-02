@@ -61,10 +61,10 @@
   }
 
   // EventSource: replays job.script, one timer per step
-  // replay pace 0.55: a first build lands in about 15 s
+  // replay pace 0.32: a first build lands in about 10 s
   window.EventSource = class {
     constructor(url) { this.url = url; this.readyState = 1; this.l = {}; this.timers = []; let at = 0;
-      for (const [ms, icon, text] of job.script) { at += ms * 0.55; this.timers.push(setTimeout(() => icon === 'done'
+      for (const [ms, icon, text] of job.script) { at += ms * 0.32; this.timers.push(setTimeout(() => icon === 'done'
         ? (job.script = [[0, 'done']], this.emit('done', { ...done(), t: Date.now() })) // a reattach replays just the result
         : this.emit('step', { icon, text, t: Date.now() }), at)); }
     }
