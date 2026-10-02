@@ -22,6 +22,16 @@ pgfplots doesn't understand CSV quoting. If a label has a quoted comma in it, th
 - `xtick distance` is in days: use 1 for ≤ 10 days, 7 for ≤ 3 months, 30 above that.
 - If x is not a date (a number), drop `date coordinates in=x` and `xticklabel`.
 
+**Several series** (`y` is a list, e.g. `["train_loss", "val_loss"]` by `epoch`): one `\addplot` per column, x is a number. Type legend entries without `_ # % & $`:
+```latex
+\begin{tikzpicture}
+\begin{axis}[xlabel={epoch}, ylabel={loss}, ymin=0, legend pos=north east]
+\addplot+[mark=none] table[col sep=comma, x=epoch, y=train_loss]{data/table_results.csv}; \addlegendentry{train loss}
+\addplot+[mark=none] table[col sep=comma, x=epoch, y=val_loss]{data/table_results.csv}; \addlegendentry{val loss}
+\end{axis}
+\end{tikzpicture}
+```
+
 **Timeline backdrop** (`commits_per_day.csv` only, never as a chart of its own): a short strip of spikes (one per active day, honest for gappy multi-year histories too) under the milestone list, no y label, no caption beyond "Activity over the project":
 ```latex
 \begin{tikzpicture}

@@ -91,6 +91,7 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 - date + number → line
 - category + number → bar
 - single number column → histogram
+- numbers only, first column strictly increasing integers (epoch/step) → line per metric group (`*_loss` together, `y` a list)
 - 6 or fewer categories as parts of a whole → pie/doughnut
 
 ## Intake and gap check
@@ -240,7 +241,7 @@ themes/         switch cache: <theme>.pdf per compiled theme + key (sha1 of main
            "appendix": {"linesAdded": 0, "linesRemoved": 0}} | null,
   "logs": {"lines": 0, "errors": 0, "warnings": 0} | null,
   "code": {"files": [{"path": "input/x/server.py", "lang": "Python", "lines": 38}], "entry": ["input/x/server.py"]} | null,
-  "charts": [{"csv": "data/commits_per_day.csv", "kind": "line|bar|pie|hist|heatmap", "x": "date", "y": "commits", "title": "Commits per day"}],
+  "charts": [{"csv": "data/commits_per_day.csv", "kind": "line|bar|pie|hist|heatmap", "x": "date", "y": "commits" | ["train_loss", "val_loss"], "title": "Commits per day"}],
   "notes": [{"file": "input/notes.md", "text": "truncated ~6000 chars"}],
   "answers": "contents of input/answers.md or null",
   "images": [{"id": "img1", "file": "images/img1.png", "original": "input/shot.png"}]

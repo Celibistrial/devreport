@@ -157,6 +157,58 @@ test('code facts: source files without vendored/tests noise, entry points from m
   assert.strictEqual(collect(fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'))).code, null);
 });
 
+test('all-numeric table with an epoch-like x gets one line chart per metric group', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  fs.mkdirSync(path.join(job, 'input'));
+  fs.writeFileSync(path.join(job, 'input/results.csv'), 'epoch,train_loss,val_loss,val_acc\n1,1.9,2.2,0.39\n2,1.7,1.9,0.47\n3,1.5,1.8,0.52\n');
+  fs.writeFileSync(path.join(job, 'input/shuffled.csv'), 'id,a,b\n3,1,2\n1,2,3\n2,3,4\n'); // x not increasing: no chart
+  const charts = collect(job).charts.map(({ csv, kind, x, y }) => ({ csv, kind, x, y }));
+  assert.deepStrictEqual(charts, [
+    { csv: 'data/table_results.csv', kind: 'line', x: 'epoch', y: ['train_loss', 'val_loss'] },
+    { csv: 'data/table_results.csv', kind: 'line', x: 'epoch', y: 'val_acc' }]);
+});
+
+test('syslog timestamps get a full date: year from ISO lines, else mtime, with Dec->Jan rollover', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  fs.mkdirSync(path.join(job, 'input'));
+  fs.writeFileSync(path.join(job, 'input/app.log'), '2025-12-31T10:00:00Z ERROR a\n2026-01-01T10:00:00Z ERROR b\n');
+  fs.writeFileSync(path.join(job, 'input/sys.log'), 'Dec 31 23:59:00 h x: ERROR c\nJan  1 00:01:00 h x: ERROR d\n');
+  collect(job);
+  assert.deepStrictEqual(csv(job, 'errors_over_time.csv'), ['bucket,errors,warnings', '2025-12-31,2,0', '2026-01-01,2,0']);
+  fs.rmSync(path.join(job, 'input/app.log'));
+  fs.utimesSync(path.join(job, 'input/sys.log'), new Date('2024-01-02'), new Date('2024-01-02'));
+  collect(job);
+  assert.deepStrictEqual(csv(job, 'errors_over_time.csv'), ['bucket,errors,warnings', '2023-12-31,1,0', '2024-01-01,1,0']);
+});
+
+test('notes, logs and data inside a repo are read; vendored, ignored, test and README files are not', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  const repo = path.join(job, 'input', 'app');
+  const put = (rel, body) => { fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true }); fs.writeFileSync(path.join(repo, rel), body); };
+  put('README.md', '# App\n'); put('devlog.md', 'day 1'); put('docs/design.md', 'design'); put('src/deep/notes.md', 'deep');
+  put('LICENSE.md', 'x'.repeat(5000)); put('src/main.py', 'print(1)\n'); put('requirements.txt', 'flask\n');
+  put('logs/run.log', '2026-09-01T10:00:00Z ERROR a\n2026-09-02T10:00:00Z ERROR b\n');
+  put('data/scores.csv', 'team,score\na,1\nb,2\n'); put('tests/fixtures/f.log', '2026-01-01T00:00:00Z ERROR fixture\n');
+  put('vendor/lib/NOTES.md', 'vendored'); put('node_modules/x/readme.md', 'nm'); put('.github/PULL_REQUEST_TEMPLATE.md', 'tpl');
+  put('out.md', 'ignored'); put('.gitignore', 'out.md\n');
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const facts = collect(job);
+  assert.deepStrictEqual(facts.notes.map(n => n.file.slice('input/app/'.length)), ['LICENSE.md', 'devlog.md', 'docs/design.md', 'src/deep/notes.md']);
+  assert.strictEqual(facts.notes[0].text.length, 1000); // boilerplate is capped
+  assert.deepStrictEqual(facts.logs, { lines: 2, errors: 2, warnings: 0 });
+  assert.ok(facts.charts.some(c => c.csv === 'data/table_scores.csv'));
+});
+
+test('a README used as project.readme is not also a note', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  fs.mkdirSync(path.join(job, 'input'));
+  fs.writeFileSync(path.join(job, 'input/README.md'), '# Fox\n');
+  fs.writeFileSync(path.join(job, 'input/notes.md'), 'n');
+  const facts = collect(job);
+  assert.match(facts.project.readme, /Fox/);
+  assert.deepStrictEqual(facts.notes.map(n => n.file), ['input/notes.md']);
+});
+
 test('empty and missing input never throws', () => {
   const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
   const facts = collect(job);

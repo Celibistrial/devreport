@@ -7,7 +7,9 @@ const { execFileSync } = require('child_process');
 const MAX_FILE = 5 * 1024 * 1024;
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
 const IMG_EXT = new Set(['.png', '.jpg', '.jpeg']); // tectonic only reliably takes these
-const NOTE_MAX = 6000, NOTES_TOTAL = 30000, MAX_IMAGES = 30;
+const NOTE_MAX = 6000, NOTES_TOTAL = 30000, MAX_IMAGES = 30, BOILERPLATE_MAX = 1000;
+const BOILERPLATE = /^(licen[cs]e|copying|changelog|changes|history)\b/i; // fine as notes, but capped
+const REPO_SKIP = /(^|\/)(\.[^/]+|fixtures?|testdata)\/|(^|\/)(CMakeLists\.txt|requirements[^/]*\.txt)$/; // in a repo: not notes/logs/data
 const LANGS = {
   '.js': 'JavaScript', '.mjs': 'JavaScript', '.cjs': 'JavaScript', '.jsx': 'JavaScript',
   '.ts': 'TypeScript', '.tsx': 'TypeScript', '.py': 'Python', '.rb': 'Ruby', '.go': 'Go',
@@ -209,7 +211,7 @@ function gitOutputs(allCommits, dataDir, charts) {
 // ---------- logs ----------
 const TS = [
   [/(\d{4}-\d\d-\d\d)[T ](\d\d):\d\d/, m => ({ day: m[1], hour: m[2] })],
-  [/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +(\d{1,2}) (\d\d):\d\d:\d\d/, m => ({ day: `${MONTHS[m[1]]}-${m[2].padStart(2, '0')}`, hour: m[3] })],
+  [/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +(\d{1,2}) (\d\d):\d\d:\d\d/, m => ({ md: `${MONTHS[m[1]]}-${m[2].padStart(2, '0')}`, hour: m[3] })], // year filled in by logOutputs
   [/\[(\d\d):\d\d:\d\d(?:\.\d+)?\]/, m => ({ day: null, hour: m[1] })],
 ];
 const ERR = /\b(error|err!?|fatal|critical|panic|exception)\b|traceback/i;
@@ -234,19 +236,27 @@ function normalizeError(line) {
     .replace(/\d+(\.\d+)?/g, '<n>')
     .replace(/^[\s:,\-\]|]+/, '').replace(/^\[?(ERROR|ERR|FATAL|CRIT(ICAL)?)\]?:?\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
 }
+// texts: [{text, year}], year = the file's mtime year. Syslog has no year: take the earliest ISO year in any of
+// the logs, else the mtime year (minus Dec->Jan rollovers in the file), so every bucket is a full YYYY-MM-DD.
 function logOutputs(texts, dataDir, charts) {
   const stats = { lines: 0, errors: 0, warnings: 0 }, events = [], patterns = {};
-  for (const text of texts) {
-    let cur = null;
+  const iso = Math.min(...texts.flatMap(t => (t.text.match(/\b\d{4}(?=-\d\d-\d\d[T ]\d\d:)/g) || []).map(Number)));
+  for (const { text, year } of texts) {
+    let cur = null, roll = 0, mon = 0;
+    const sys = [];
     for (const line of text.split('\n')) {
       if (!line.trim()) continue;
       stats.lines++;
-      cur = lineTs(line) || cur; // continuation lines inherit the last timestamp
+      const ts = lineTs(line);
+      if (ts && ts.md) { if (+ts.md.slice(0, 2) < mon - 6) roll++; mon = +ts.md.slice(0, 2); ts.roll = roll; }
+      cur = ts || cur; // continuation lines inherit the last timestamp
       const lvl = ERR.test(line) ? 'e' : WARN.test(line) ? 'w' : null;
       if (lvl === 'e') { stats.errors++; const p = normalizeError(line); if (p) patterns[p] = (patterns[p] || 0) + 1; }
       if (lvl === 'w') stats.warnings++;
-      if (cur) events.push({ ...cur, lvl });
+      if (cur) { events.push({ ...cur, lvl }); if (cur.md) sys.push(events[events.length - 1]); }
     }
+    const y0 = isFinite(iso) ? iso : (year || new Date().getFullYear()) - roll;
+    for (const e of sys) e.day = `${y0 + e.roll}-${e.md}`;
   }
   // Bucket by day if that gives >=2 buckets, else by hour.
   const days = new Set(events.map(e => e.day).filter(Boolean));
@@ -290,6 +300,17 @@ function tableOutput(rel, header, rows, dataDir, charts, used) {
     const pie = cats.size === rows.length && rows.length <= 6 && rows.every(r => +r[ni] >= 0);
     chart = { kind: pie ? 'pie' : 'bar', x: cat, y: num };
   } else if (num && types.filter(t => t === 'number').length === 1) chart = { kind: 'hist', x: num, y: num };
+  else if (num && !cat && !date && n >= 2) {
+    // All-numeric (epoch,train_loss,val_loss,val_acc): a strictly increasing integer first column is x; one line
+    // chart per metric group (columns sharing a last name part: *_loss together, *_acc together).
+    const xi = header.indexOf(num), xs = rows.map(r => +r[xi]);
+    if (!xs.every((v, i) => Number.isInteger(v) && (!i || v > xs[i - 1]))) return;
+    const groups = {};
+    header.forEach((h, i) => { if (i !== xi && types[i] === 'number') (groups[h.toLowerCase().split(/[_\s-]/).pop()] ||= []).push(h); });
+    for (const y of Object.values(groups))
+      charts.push({ csv: `data/${name}.csv`, kind: 'line', x: num, y: y.length > 1 ? y : y[0], title: `${y.join(', ')} by ${num} (${path.basename(rel)})` });
+    return;
+  }
   if (!chart || n < 2) return;
   const title = chart.kind === 'line' ? `${chart.y} over time` : chart.kind === 'hist' ? `Distribution of ${chart.y}` : `${chart.y} by ${chart.x}`;
   charts.push({ csv: `data/${name}.csv`, ...chart, title: title[0].toUpperCase() + title.slice(1) + ` (${path.basename(rel)})` });
@@ -332,10 +353,10 @@ function collect(jobDir) {
   const inRepo = f => repos.some(r => f.startsWith(r + '/'));
   const abs = f => path.join(jobDir, f);
   const commits = [], logTexts = [], usedTables = new Set();
-  let notesTotal = 0;
+  let notesTotal = 0, readme = null;
   const addNote = (file, text) => {
     if (notesTotal >= NOTES_TOTAL) return;
-    text = text.slice(0, Math.min(NOTE_MAX, NOTES_TOTAL - notesTotal));
+    text = text.slice(0, Math.min(BOILERPLATE.test(path.basename(file)) ? BOILERPLATE_MAX : NOTE_MAX, NOTES_TOTAL - notesTotal));
     notesTotal += text.length;
     facts.notes.push({ file, text });
   };
@@ -350,7 +371,7 @@ function collect(jobDir) {
     for (const d of dirs) while (root !== 'input' && d !== root && !d.startsWith(root + '/')) root = path.dirname(root);
   }
   safe('project', () => {
-    const readme = files.find(f => path.dirname(f) === root && /^readme(\.md|\.txt)?$/i.test(path.basename(f)));
+    readme = files.find(f => path.dirname(f) === root && /^readme(\.md|\.txt)?$/i.test(path.basename(f)));
     const readmeText = readme && readText(abs(readme));
     if (readmeText) facts.project.readme = readmeText.slice(0, 4000);
     let pkgName = null;
@@ -380,7 +401,10 @@ function collect(jobDir) {
     if (code.length) facts.code = codeFacts(code, files, abs);
   });
 
-  for (const f of files) safe(f, () => {
+  // Root-level files of each repo first, then docs/, then the rest (loose uploads keep walk order), so the notes cap keeps the important ones.
+  const repoOf = f => repos.find(r => f.startsWith(r + '/'));
+  const prio = f => { const r = repoOf(f); if (!r) return 0; const rel = f.slice(r.length + 1); return !rel.includes('/') ? 0 : rel.startsWith('docs/') ? 1 : 2; };
+  for (const f of [...files].sort((a, b) => prio(a) - prio(b))) safe(f, () => {
     const ext = path.extname(f).toLowerCase();
     if (IMG_EXT.has(ext)) {
       if (facts.images.length >= MAX_IMAGES || vendored(f)) return;
@@ -393,7 +417,10 @@ function collect(jobDir) {
       facts.images.push({ id, file: out, original: f });
       return;
     }
-    if (inRepo(f)) return; // repo content is covered by git/languages/README
+    if (f === readme) return; // already project.readme
+    // In a repo, notes/logs/data are parsed like loose files, minus vendored, test and dot-dir paths (code goes to languages)
+    const rel = inRepo(f) && f.slice(repoOf(f).length + 1);
+    if (rel && (vendored(rel) || TEST_FILE.test(rel) || REPO_SKIP.test(rel))) return;
     if (f === 'input/answers.md') { facts.answers = readText(abs(f)); return; }
     if (!['.log', '.txt', '.md', '.csv', '.json'].includes(ext)) return;
     const text = readText(abs(f));
@@ -409,7 +436,7 @@ function collect(jobDir) {
       const c = parsePastedGitLog(text);
       if (c.length) return void commits.push(...c);
     }
-    if (ext === '.log' || (ext === '.txt' && looksLikeLog(text))) return void logTexts.push(text);
+    if (ext === '.log' || (ext === '.txt' && looksLikeLog(text))) return void logTexts.push({ text, year: fs.statSync(abs(f)).mtime.getFullYear() });
     addNote(f, text);
   });
 
