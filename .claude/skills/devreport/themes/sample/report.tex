@@ -30,10 +30,10 @@ Each job is a row. Workers claim rows with \texttt{SELECT \dots{} FOR UPDATE SKI
 
 We tuned the claim query and the index on \texttt{run\_at} over eight weeks. The p95 time from enqueue to start fell from 212 ms to 104 ms.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}
-\begin{axis}[height=5cm, xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
+\begin{axis}[xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
 \addplot table[col sep=comma, x=week, y=p95]{data/latency.csv};
 \addplot table[col sep=comma, x=week, y=p50]{data/latency.csv};
 \legend{p95, p50}
@@ -46,17 +46,17 @@ We tuned the claim query and the index on \texttt{run\_at} over eight weeks. The
 
 Most failed jobs were timeouts in calls to a slow payment API. Raising its timeout and moving it to its own worker pool removed about half of them.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}\drsafecats
-\begin{axis}[drbar, height=5cm, width=0.8\linewidth, xtick=data, xticklabels from table={data/failures.csv}{cause}, table/col sep=comma, ymin=0, enlarge x limits=0.12, nodes near coords]
+\begin{axis}[drbar, xtick=data, xticklabels from table={data/failures.csv}{cause}, table/col sep=comma, ymin=0, enlarge x limits=0.12, nodes near coords]
 \addplot table[col sep=comma, x expr=\coordindex, y=count]{data/failures.csv};
 \end{axis}
 \end{tikzpicture}
 \caption{Failed jobs by cause over the eight weeks.}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
 \drpie{data/languages.csv}{language}{lines}
 \caption{Lines of code by language.}

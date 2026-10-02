@@ -14,46 +14,29 @@
 \end{frame}
 
 \begin{frame}{How it works}
-\framesubtitle{One Postgres table, many workers}
+\drFlow{Node service, {Postgres jobs table}, {Workers claim with \texttt{SKIP LOCKED}}, Go sidecar, Review queue}
 \begin{itemize}
-\item Jobs are rows; workers claim them with \texttt{SKIP LOCKED}.
-\item Failed jobs back off and retry up to five times.
-\item A Go sidecar drains dead letters into a review queue.
-\item The dashboard reads the same table, so there is no second store.
+\item Jobs are rows, so two workers never take the same job and no lock server is needed.
+\item Failed jobs back off and retry up to five times before the sidecar takes them.
+\item The dashboard reads the same table, so there is no second store to keep in sync.
 \end{itemize}
 \end{frame}
 
 \begin{frame}{Results after eight weeks}
-\noindent\drkpi{104 ms}{p95 latency}\hfill\drkpi{99.2\%}{jobs succeed}\hfill\drkpi{1.8k}{jobs / min}\hfill\drkpi{0}{lost jobs}
-
-\medskip
-\centering
+\drTwoCol{\drBigNumber{104 ms}{p95 enqueue to start}{Down from 212 ms in week one, after tuning the claim query and the index on \texttt{run\_at}.}}{\centering
 \begin{tikzpicture}
-\begin{axis}[height=4.3cm, width=0.9\linewidth, xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
+\begin{axis}[xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
 \addplot table[col sep=comma, x=week, y=p95]{data/latency.csv};
 \addplot table[col sep=comma, x=week, y=p50]{data/latency.csv};
 \legend{p95, p50}
 \end{axis}
-\end{tikzpicture}
+\end{tikzpicture}}
 \end{frame}
 
-\begin{frame}{Where the failures came from}
-\begin{columns}[c]
-\begin{column}{0.55\linewidth}\centering
-\begin{tikzpicture}\drsafecats
-\begin{axis}[drbar, height=5.2cm, width=\linewidth, xtick=data, xticklabels from table={data/failures.csv}{cause}, table/col sep=comma, ymin=0, enlarge x limits=0.12, nodes near coords]
-\addplot table[col sep=comma, x expr=\coordindex, y=count]{data/failures.csv};
-\end{axis}
-\end{tikzpicture}
-
-{\drCaption Failed jobs by cause}
-\end{column}
-\begin{column}{0.42\linewidth}\centering
-\drpie[radius=1.5]{data/languages.csv}{language}{lines}
-
-{\drCaption Lines by language}
-\end{column}
-\end{columns}
+\begin{frame}{Eight weeks of work}
+\drTimeline{Jul 1/First worker claims a row, Jul 9/Retries with backoff, Jul 20/Go sidecar for dead letters, Aug 3/Dashboard on the same table, Aug 24/{Payment calls in their own pool}}
+\vspace{2em}
+\drCallout{Most failures were timeouts calling a slow payment API. Moving those calls to their own worker pool \alert{removed about half of them}.}
 \end{frame}
 
 \end{document}
