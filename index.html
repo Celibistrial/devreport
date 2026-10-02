@@ -92,8 +92,9 @@ main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;p
 .thumb{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;margin-bottom:7px;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 .seg.th{grid-template-columns:repeat(4,1fr);gap:8px}
-#f[data-kind=report] .seg.th{grid-template-columns:repeat(3,1fr)}
-#f[data-kind=report] .theme[data-kinds=slides]:not(#tplcard){display:none}
+/* in report mode slides-only themes stay visible but dimmed; picking one switches the format to Slides */
+#f[data-kind=report] .theme[data-kinds=slides] .face{opacity:.55}
+#f[data-kind=report] .theme[data-kinds=slides] small::after{content:' · slides only'}
 .sw.u{aspect-ratio:16/9;border-radius:6px;margin-bottom:7px;background:var(--paper);border:1.5px dashed #c4b8a2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px;font:10px/1.2 var(--mono);color:var(--muted);text-align:center;overflow:hidden}
 .sw.u .ic{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
 .sw.u .fn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -295,7 +296,6 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   .rev{max-height:none}
   .v-done iframe{min-height:140px}
   .seg.th{grid-template-columns:repeat(2,1fr)}
-  #f[data-kind=report] .seg.th{grid-template-columns:repeat(3,1fr)}
   .dbar{gap:6px;padding:10px 12px}
   .dbar .msg{flex-basis:100%}
   .dbar .btn{padding:7px 10px;font-size:12px}
@@ -474,7 +474,7 @@ function setKind(kind) {
   form.querySelectorAll('.thumb img[data-t]').forEach((img) => { img.src = preview(THEMES.find((t) => t.id === img.dataset.t), kind); });
   const sel = form.querySelector('[name=theme]:checked');
   if (kind === 'report' && sel.value !== 'custom' && !THEMES.find((t) => t.id === sel.value).kinds.includes('report')) form.querySelector('[name=theme][value=paper]').checked = true;
-  $('#thlede').textContent = kind === 'slides' ? 'Each card is page one of a real deck in that theme. You can switch themes after it\'s built.' : 'Reports come in Paper or Midnight; Slides add five Beamer themes. You can switch after it\'s built.';
+  $('#thlede').textContent = kind === 'slides' ? 'Each card is page one of a real deck in that theme. You can switch themes after it\'s built.' : 'Reports come in Paper or Midnight. Picking a slides-only theme switches the format to Slides. You can switch themes after it\'s built.';
 }
 // "Your template" card: picking it opens the file picker; a template means slides
 const tplIn = $('#tpl'), checked = (n) => form.querySelector(`[name=${n}]:checked`).value;
@@ -507,7 +507,12 @@ function setLen(v) {
 }
 lenr.addEventListener('input', () => setLen(lenr.value));
 document.querySelectorAll('.step button').forEach((b) => { b.onclick = () => setLen(LEN[checked('kind')].v + +b.dataset.d); });
-form.addEventListener('change', (e) => { if (e.target.name === 'kind') { setKind(e.target.value); setLen(); } });
+form.addEventListener('change', (e) => {
+  if (e.target.name === 'kind') { setKind(e.target.value); setLen(); }
+  if (e.target.name === 'theme' && checked('kind') === 'report' && e.target.value !== 'custom' && !THEMES.find((t) => t.id === e.target.value).kinds.includes('report')) {
+    form.querySelector('[name=kind][value=slides]').checked = true; setKind('slides'); setLen();
+  }
+});
 setKind(checked('kind')); setLen();
 document.addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
