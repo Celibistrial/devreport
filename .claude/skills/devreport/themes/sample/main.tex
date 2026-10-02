@@ -14,11 +14,10 @@
 \end{frame}
 
 \begin{frame}{How it works}
-\drFlow{Node service, {Postgres jobs table}, {Workers claim with \texttt{SKIP LOCKED}}, Go sidecar, Review queue}
+\drFlow{Node service, Postgres jobs table, Worker pool, Go sidecar, Review queue}[enqueues a row, one row per job, claims with \texttt{SKIP LOCKED}, takes dead letters, manual retry]
 \begin{itemize}
 \item Jobs are rows, so two workers never take the same job and no lock server is needed.
 \item Failed jobs back off and retry up to five times before the sidecar takes them.
-\item The dashboard reads the same table, so there is no second store to keep in sync.
 \end{itemize}
 \end{frame}
 
@@ -35,7 +34,6 @@
 
 \begin{frame}{Eight weeks of work}
 \drTimeline{Jul 1/First worker claims a row, Jul 9/Retries with backoff, Jul 20/Go sidecar for dead letters, Aug 3/Dashboard on the same table, Aug 24/{Payment calls in their own pool}}
-\vspace{2em}
 \drCallout{Most failures were timeouts calling a slow payment API. Moving those calls to their own worker pool \alert{removed about half of them}.}
 \end{frame}
 

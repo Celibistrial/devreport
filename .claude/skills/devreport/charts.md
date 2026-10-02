@@ -105,8 +105,8 @@ Mix these so frames don't all look alike. Each fills the frame width; the theme 
   `\drTwoCol{\begin{itemize}\item ...\end{itemize}}{\drCallout{...}}`
 - `\drImageRight{images/img1.png}{left content}`: bullets on the left, the image as large as fits on the right.
 - `\drBigNumber{0.831}{held-out test accuracy}{One sentence of context, or leave empty}`: one real outcome number, large, in the accent colour. Copy it exactly from the source. Alone on a frame, or in one column of `\drTwoCol`.
-- `\drCallout{text}`: a tinted panel with an accent bar, for the one sentence the judge must remember.
-- `\drFlow{Data loader, Augment, {ResNet, 3 stages}, SGD}`: 2–5 boxes joined by arrows across the frame, for "How it works". Brace a label that has a comma. Keep labels to about 4 words.
+- `\drCallout{text}`: a tinted panel with an accent bar, for the one sentence the judge must remember. After a list, put `\vfill` before it so it sits at the foot of the frame.
+- `\drFlow{Data loader, Augment, {ResNet, 3 stages}, SGD}[45k/5k split, crop and flip, 0.27M params, step LR]`: 2–5 boxes joined by arrows across the frame, for "How it works". Brace a label that has a comma. Keep labels to about 3 words. The optional second argument puts a caption of a few words under each box, in the same order; use it when the sources say what each step does.
 - `\drTimeline{2026-03-01/Started the repo, 2026-04-10/First demo, ...}`: dots on a line, date above, event below, from `repo.milestones` (3–6 of them). Brace an event with a comma; no `/` inside an event.
 - `\drSection{title}{subtitle}`: a divider frame. Write it between frames, not inside one; it counts as a frame.
 - `\alert{words}`: accent colour for a phrase or a table row's key cell.
