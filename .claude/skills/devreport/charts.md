@@ -1,9 +1,9 @@
-# Chart snippets (tested with tectonic + both themes)
+# Chart snippets (tested with tectonic in every theme)
 
 Every chart reads its numbers from a CSV listed in `facts.json` → `charts[]`. Use a chart only where it is evidence for the section around it; leaving charts out is fine. Swap the file name and
 column names for the chart's `csv`, `x`, `y`. Never type a number into a chart. The theme already sets
-colours, fonts, grid and default size, so don't add colours unless you want a second accent
-(`drAccentB`, `drAccentC`, `drAccentD`).
+colours, fonts, font sizes (ticks, labels, legends, the numbers from `nodes near coords`), grid and default size, so don't add colours unless you want a second accent
+(`drAccentB`, `drAccentC`, `drAccentD`), and never set a `font=` size in a chart: the same snippet must look right in every theme.
 
 Wrap each chart in `figure` (report) with `\centering` and a `\caption{...}`; on slides, put one chart per
 frame with the chart title as the frame title (no figure environment needed).
@@ -36,7 +36,7 @@ pgfplots doesn't understand CSV quoting. If a label has a quoted comma in it, th
 Short labels (≤ 8 categories, short words), vertical:
 ```latex
 \begin{tikzpicture}\drsafecats
-\begin{axis}[drbar, xtick=data, xticklabels from table={data/table_x.csv}{name}, table/col sep=comma, ymin=0, enlarge x limits=0.08, nodes near coords, nodes near coords style={font=\scriptsize, drMuted}]
+\begin{axis}[drbar, xtick=data, xticklabels from table={data/table_x.csv}{name}, table/col sep=comma, ymin=0, enlarge x limits=0.08, nodes near coords]
 \addplot table[col sep=comma, x expr=\coordindex, y=value]{data/table_x.csv};
 \end{axis}
 \end{tikzpicture}
@@ -45,14 +45,14 @@ Short labels (≤ 8 categories, short words), vertical:
 Long labels (error messages in `top_errors.csv`, long category names), horizontal:
 ```latex
 \begin{tikzpicture}\drsafecats
-\begin{axis}[drhbar, y dir=reverse, ytick=data, yticklabels from table={data/top_errors.csv}{error}, table/col sep=comma, yticklabel style={font=\ttfamily\scriptsize}, xmin=0, height=7cm, enlarge y limits=0.06, nodes near coords, nodes near coords style={font=\scriptsize, drMuted}]
+\begin{axis}[drhbar, y dir=reverse, ytick=data, yticklabels from table={data/top_errors.csv}{error}, table/col sep=comma, xmin=0, height=7cm, enlarge y limits=0.06, nodes near coords]
 \addplot table[col sep=comma, y expr=\coordindex, x=count]{data/top_errors.csv};
 \end{axis}
 \end{tikzpicture}
 ```
 - `\drsafecats` (from the theme) must come first inside the `tikzpicture`, so `_ # % & $` in labels from the CSV print instead of breaking the build.
 - For errors use `\addplot+[drAccentC, fill=drAccentC]` to colour them as warnings.
-- On slides use `height=5.5cm` and `font=\ttfamily\tiny` for the labels.
+- On slides use `height=5.5cm`. `drhbar` already sets the labels in the theme's small monospace size; if they are too long to fit, show fewer rows or leave the chart out, never shrink them.
 
 ## pie: `kind: "pie"` (≤ 7 parts of a whole)
 
