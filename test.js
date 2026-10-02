@@ -315,10 +315,12 @@ test('length, questions.json and answers are validated', () => {
 
 test('themes are validated per format and land in theme.tex', () => {
   const { themeError, themeTex, useThemeTex } = require('./server');
-  assert.strictEqual(themeError('paper', { kind: 'report' }), null);
+  assert.strictEqual(themeError('article', { kind: 'report' }), null); // every report is the standard article layout
+  for (const t of ['paper', 'midnight', 'metropolis', 'custom']) assert.match(themeError(t, { kind: 'report', template: true }), /standard LaTeX article/);
+  assert.match(themeError('article', { kind: 'slides' }), /for reports/);
+  assert.strictEqual(themeError('paper', { kind: 'slides' }), null);
   assert.strictEqual(themeError('metropolis', { kind: 'slides' }), null);
   assert.strictEqual(themeError('custom', { kind: 'slides', template: true }), null);
-  assert.match(themeError('metropolis', { kind: 'report' }), /slides theme/);
   assert.match(themeError('custom', { kind: 'slides' }), /no PowerPoint template/);
   for (const t of ['nope', '../paper', 'constructor', 5]) assert.match(themeError(t, { kind: 'slides' }), /Unknown/);
   assert.strictEqual(themeTex('focus'), '\\usepackage{../../.claude/skills/devreport/themes/devreport-focus}\n');

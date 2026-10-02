@@ -1,11 +1,11 @@
-# Chart snippets (tested with tectonic in every theme)
+# Chart snippets (tested with tectonic in every theme and the report's article layout)
 
 Every chart reads its numbers from a CSV listed in `facts.json` → `charts[]`. Use a chart only where it is evidence for the section around it; leaving charts out is fine. Swap the file name and
 column names for the chart's `csv`, `x`, `y`. Never type a number into a chart. The theme already sets
-colours, fonts, font sizes (ticks, labels, legends, the numbers from `nodes near coords`), grid and size (on slides the axis fills the frame width and a set share of its height), so never write `height=` or `width=` in an axis, and don't add colours unless you want a second accent
+colours, fonts, font sizes (ticks, labels, legends, the numbers from `nodes near coords`), grid and size (on slides the axis fills the frame width and a set share of its height; in a report the charts are classic black-and-grey paper plots at caption-size type), so never write `height=` or `width=` in an axis, and don't add colours unless you want a second accent
 (`drAccentB`, `drAccentC`, `drAccentD`), and never set a `font=` size in a chart: the same snippet must look right in every theme.
 
-Wrap each chart in `\begin{figure}[htbp]` (report; never `[h]` or `[H]`, which leave half-empty pages) with `\centering` and a `\caption{...}`; on slides, a chart gets the frame to itself (title = frame title, caption with `{\drCaption ...}` right under it, no blank band) or one column of `\drTwoCol` (see Layouts below). No figure environment on slides.
+Wrap each chart in `\begin{figure}[htbp]` (report; never `[h]` or `[H]`, which leave half-empty pages) with `\centering`, a `\caption{...}` and a `\label{fig:...}` that the text cites with `\autoref{fig:...}`; on slides, a chart gets the frame to itself (title = frame title, caption with `{\drCaption ...}` right under it, no blank band) or one column of `\drTwoCol` (see Layouts below). No figure environment on slides.
 
 pgfplots doesn't understand CSV quoting. If a label has a quoted comma in it, the row splits into extra columns. If that breaks the build, leave that chart out and don't edit the CSV.
 
@@ -63,7 +63,9 @@ Long labels (error messages in `top_errors.csv`, long category names), horizonta
 - For errors use `\addplot+[drAccentC, fill=drAccentC]` to colour them as warnings.
 - `drhbar` already sets the labels in the theme's small monospace size; if they are too long to fit, show fewer rows or leave the chart out, never shrink them.
 
-## pie: `kind: "pie"` (≤ 7 parts of a whole)
+## pie: `kind: "pie"` (≤ 7 parts of a whole; slides only)
+
+In a report use the bar snippet above instead: papers don't use pies (and `\drpie` draws a bar there anyway).
 
 ```latex
 \drpie{data/table_x.csv}{name}{value}
@@ -84,13 +86,15 @@ Two pies side by side: `\drpie{a.csv}{..}{..}\hspace{2em}\drpie{b.csv}{..}{..}`.
 
 ## table: a user `table_*.csv` as a booktabs table
 
-For a small table (≤ 12 rows, ≤ 5 columns) where the exact numbers matter more than the shape:
+For a small table (≤ 12 rows, ≤ 5 columns) where the exact numbers matter more than the shape. In a report put it in `\begin{table}[htbp]\centering\caption{...}\label{tab:...}` ... `\end{table}` (caption above) and cite it with `\autoref{tab:...}`:
 ```latex
 \pgfplotstabletypeset[col sep=comma, string type, every head row/.style={before row=\toprule, after row=\midrule}, every last row/.style={after row=\bottomrule}]{data/table_x.csv}
 ```
 `string type` prints every cell as it is in the CSV. If a cell has `_ & % #` in it, the build breaks: put `\drsafecats` just before the command, inside a group: `{\drsafecats\pgfplotstabletypeset[...]{...}}`.
 
-## KPI row (only for real outcome numbers)
+## KPI row (slides only, only for real outcome numbers)
+
+Never in a report: a paper states the number in a sentence or a table.
 
 Only when facts hold an outcome number: users, error rate, latency, accuracy, tests passing (from logs, a user table or the answers, including the proudest-result answer). Commits, lines, files and days are never tiles. Copy each value exactly as the source writes it; never compute one. Up to 4 tiles:
 ```latex
@@ -105,7 +109,7 @@ Mix these so frames don't all look alike. Each fills the frame width; the theme 
   `\drTwoCol{\begin{itemize}\item ...\end{itemize}}{\includegraphics...}`
 - `\drImageRight{images/img1.png}{left content}`: bullets on the left, the image as large as fits on the right.
 - `\drBigNumber{0.831}{held-out test accuracy}{One sentence of context, or leave empty}`: one real outcome number, large, in the accent colour. Copy it exactly from the source. Alone on a frame, or in one column of `\drTwoCol`.
-- No callout boxes: emphasis is `lert` on a phrase (see SKILL.md, "No boxes around text").
+- No callout boxes: emphasis is `\alert` on a phrase (see SKILL.md, "No boxes around text").
 - `\drFlow{Data loader, Augment, {ResNet, 3 stages}, SGD}[45k/5k split, crop and flip, 0.27M params, step LR]`: 2–5 boxes joined by arrows across the frame, for "How it works". Brace a label that has a comma. Keep labels to about 3 words. The optional second argument puts a caption of a few words under each box, in the same order; use it when the sources say what each step does.
 - `\drTimeline{2026-03-01/Started the repo, 2026-04-10/First demo, ...}`: dots on a line, date above, event below, from `repo.milestones` (3–6 of them). Brace an event with a comma; no `/` inside an event.
 - `\drSection{title}{subtitle}`: a divider frame. Write it between frames, not inside one; it counts as a frame.

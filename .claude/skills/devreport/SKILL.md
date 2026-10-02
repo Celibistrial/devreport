@@ -1,6 +1,6 @@
 ---
 name: devreport
-description: Turn a devreport job folder (job.json, facts.json, data/*.csv, input notes, images) into a themed LaTeX report or Beamer slide deck compiled to main.pdf with tectonic. Use when asked to build a devreport report or slides in a jobs/<id>/ folder.
+description: Turn a devreport job folder (job.json, facts.json, data/*.csv, input notes, images) into a research-paper-style LaTeX report or a themed Beamer slide deck compiled to main.pdf with tectonic. Use when asked to build a devreport report or slides in a jobs/<id>/ folder.
 ---
 
 # devreport: job folder to PDF
@@ -13,7 +13,7 @@ You have Read, Write, Edit, Skill and `tectonic` only. There is no other shell, 
 
 ## 1. Read the inputs
 
-1. `job.json`: `kind` is `report` or `slides`, `length` is the target number of pages or slides, and `theme` is the one the user picked (`paper` or `midnight` for a report; for slides also `metropolis`, `moloch`, `focus`, `trigon`, `madrid`, or `custom`). The theme only matters for `custom`: main.tex never depends on it (section 3). For `custom` (the user uploaded a PowerPoint template, slides only), Read `template.md` in this skill folder now and build `template/devreport-custom.sty` first, as it says.
+1. `job.json`: `kind` is `report` or `slides`, `length` is the target number of pages or slides, and `theme` is `article` for every report (one standard research-paper look, no choice), or for slides the one the user picked: `paper`, `midnight`, `metropolis`, `moloch`, `focus`, `trigon`, `madrid`, or `custom`. The theme only matters for `custom`: main.tex never depends on it (section 3). For `custom` (the user uploaded a PowerPoint template, slides only), Read `template.md` in this skill folder now and build `template/devreport-custom.sty` first, as it says.
 2. `facts.json`. Any part can be null or missing, including `repo` and the whole file; work with what is there. If facts.json is missing, build a short document from the project folder name and say in your summary that there was no data.
    - `project`: name and README text.
    - `repo` (or null): `commits`, `authors`, `firstDate`, `lastDate`, `days`, `activeDays`, `milestones[]` (`{date, message}`, at most 8, already picked), and `appendix` (`linesAdded`, `linesRemoved`).
@@ -54,20 +54,18 @@ Every claim must trace to the README, notes, answers, logs, a user table, facts.
 
 **Length.** `job.json` `length` (also in the prompt) is the target: hit it exactly. Never pad with filler to reach it: if the sources run out, go shorter and say so in your final message. If there is more material than fits, merge sections or cut the least important ones (the appendix, timeline and key decisions go first). For slides, count the frames (title included). For a report, Read main.pdf once after compiling to check the page count, and adjust until it matches. A report's last page may be partly empty; that still counts as a page. Never use `\clearpage`/`\newpage` to reach the count.
 
-**Report**:
+**Report**: a short research paper. Numbered sections in this order; name them for the project (e.g. "Problem" or "Introduction"):
 
 | Section | Source | If missing |
 |---|---|---|
-| Title and summary paragraph | project.name, README, answers | use the name and one plain sentence from the README |
-| Problem and who it's for | README, notes, answers | leave out |
-| What we built | README, notes, code entry files, one screenshot | keep it to a paragraph |
-| How it works | README, notes, code entry files: architecture, components, data flow | keep it short; never guess at internals |
-| Key decisions and trade-offs | notes, README, answers | leave out |
-| Results and evidence | user tables (`table_*`), logs and the error charts, tests mentioned in notes, answers | leave out |
-| Challenges and lessons | notes, top_errors | leave out |
-| Timeline | `repo.milestones`, dated notes; `commits_per_day` chart only as a small backdrop under it | leave out if fewer than 3 milestones |
-| What's next | notes (TODOs) | leave out. Never invent a roadmap |
-| Repo facts (optional appendix) | `repo` and `repo.appendix`, in one prose paragraph | leave out |
+| Title, author, date, abstract | project.name, README, answers; author from `repo.authors` or the notes | title = the name; omit the author when the sources don't name one |
+| 1 Introduction / Problem: what the problem is and who it's for | README, notes, answers | one short paragraph from the README |
+| 2 System overview / How it works: architecture, components, data flow, one screenshot | README, notes, code entry files | keep it short; never guess at internals |
+| 3 Implementation: key decisions and trade-offs, libraries, timeline | notes, README, answers, code; `repo.milestones` as a small table or list (`commits_per_day` only as a backdrop under it) | fold into section 2 |
+| 4 Results and evidence | user tables (`table_*`), logs and the error charts, tests mentioned in notes, answers | leave out |
+| 5 Discussion: challenges and lessons | notes, top_errors | leave out |
+| 6 Future work | notes (TODOs) | leave out. Never invent a roadmap |
+| Appendix (optional, unnumbered or A) | `repo` and `repo.appendix`, in one prose paragraph | leave out |
 
 **Slides** (`length` frames including the title, fewer if the sources are thin):
 
@@ -86,7 +84,7 @@ Every claim must trace to the README, notes, answers, logs, a user table, facts.
 
 **Charts are chosen, not quota-filled.** Use a chart from `facts.charts` only where it is evidence for the section it sits in, and skip the rest. `commits_per_day` is only ever a backdrop for the timeline, never a section of its own. The other CSVs in `data/` that are not in `facts.charts` (hours, top files, commit types, languages) stay out of the document.
 
-**No stat or KPI row** unless facts hold a real outcome number: users, error rate, latency, accuracy, tests passing, from logs, a user table or the answers. Commits, lines of code, files and days are never KPI tiles.
+**No stat or KPI row in a report, ever** (papers state numbers in sentences and tables). On slides, no stat or KPI row unless facts hold a real outcome number: users, error rate, latency, accuracy, tests passing, from logs, a user table or the answers. Commits, lines of code, files and days are never KPI tiles.
 
 ## 3. Write `main.tex`
 
@@ -94,15 +92,15 @@ Every claim must trace to the README, notes, answers, logs, a user table, facts.
 ```latex
 \input{theme.tex}
 ```
-The server has already written `theme.tex` in the job folder: one `\usepackage` line for the theme the user picked (`template/devreport-custom` for `custom`). Don't write, edit or copy theme.tex or any theme `.sty` (except your own `template/devreport-custom.sty`), and don't load a theme any other way. After the build the user can switch themes with one click: the server rewrites theme.tex and recompiles the same main.tex with no help from you, so main.tex must compile and look right under every theme.
+The server has already written `theme.tex` in the job folder: one `\usepackage` line for the theme (`devreport-article` for every report, `template/devreport-custom` for `custom`). Don't write, edit or copy theme.tex or any theme `.sty` (except your own `template/devreport-custom.sty`), and don't load a theme any other way. Reports always stay in the article layout. For slides, the user can switch themes with one click after the build: the server rewrites theme.tex and recompiles the same main.tex with no help from you, so a deck must compile and look right under every slide theme.
 
 So use only standard LaTeX/Beamer plus the shared `dr*` interface every theme provides:
 - colours `drAccent drAccentB drAccentC drAccentD drAccentE drInk drMuted drBg drPanel drGrid`;
-- `\drkpi{value}{label}`, `\drpie{csv}{label}{value}`, `\drsafecats`, the pgfplots styles `drbar`, `drhbar` and `drstrip` (charts.md);
+- `\drsafecats`, the pgfplots styles `drbar`, `drhbar` and `drstrip` (charts.md); slides also `\drkpi{value}{label}` and `\drpie{csv}{label}{value}` (in a report `\drpie` draws a bar chart, so use the bar snippet instead);
 - slides only: `\drTwoCol`, `\drImageRight`, `\drBigNumber`, `\drFlow`, `\drTimeline`, `\drSection` and `\alert` (charts.md, "Layouts");
 - the type-size names below.
 
-Never use `\usetheme`, `\usecolortheme`, `\usefonttheme`, `\useinnertheme`, `\useoutertheme`, `\setbeamertemplate`, `\setbeamercolor`, `\setbeamerfont`, `\definecolor`, font commands (`\setmainfont`, `\fontspec`, ...) or anything that only one theme defines (`\metroset`, `\molochset`, `standout` frames, `\titleframe`, `\drPrompt`, ...). The theme loads fontspec, fonts, xcolor, pgfplots (with dateplot), pgfplotstable, pgf-pie, booktabs and graphicx; for articles also geometry, titlesec, caption, enumitem, fancyhdr and hyperref. Don't load those again.
+Never use `\usetheme`, `\usecolortheme`, `\usefonttheme`, `\useinnertheme`, `\useoutertheme`, `\setbeamertemplate`, `\setbeamercolor`, `\setbeamerfont`, `\definecolor`, font commands (`\setmainfont`, `\fontspec`, ...) or anything that only one theme defines (`\metroset`, `\molochset`, `standout` frames, `\titleframe`, `\drPrompt`, ...). The theme loads fontspec, fonts, xcolor, pgfplots (with dateplot), pgfplotstable, booktabs and graphicx (slides also pgf-pie); the article layout also loads amsmath, amssymb, geometry, caption, enumitem and hyperref. Don't load those again.
 
 **Type sizes belong to the theme.** Same level, same size, everywhere: frame titles, block titles, bullets (at every level) and captions already get the theme's sizes, and the body text is the same on every slide and page.
 - Never write `\tiny`, `\scriptsize`, `\footnotesize`, `\small`, `\normalsize`, `\large`, `\Large`, `\LARGE`, `\huge`, `\Huge` or `\fontsize`, never `\scalebox`/`\resizebox` on text, and never change the font on one frame or paragraph.
@@ -110,7 +108,12 @@ Never use `\usetheme`, `\usecolortheme`, `\usefonttheme`, `\useinnertheme`, `\us
 - When you need a size outside a frame title, block or list, use the theme's names: `\drTitle` (title), `\drLead` (subtitle line), `\drH` (heading), `\drSub` (subheading), `\drBody` (body), `\drSmall` (chart text, a short note), `\drCaption` (captions, labels), `\drStat` (big numbers; `\drkpi` already uses it). Example: a closing frame says `{\drH Thank you}`.
 - The one exception: `\resizebox{\linewidth}{!}{...}` around a whole `tikzpicture` chart.
 
-**Report** (`kind: report`): `\documentclass[11pt]{article}`, `\input{theme.tex}`, then `\title`, `\subtitle{one line}` (the theme defines it), `\author{facts.repo.authors, or omit}`, `\date{month year of lastDate}`, or `\date{}` when there is none (an omitted `\date` prints today's date), `\maketitle`, the summary paragraph, then the sections. No table of contents, no abstract heading.
+**Report** (`kind: report`): a standard research paper. `\documentclass[11pt]{article}`, `\input{theme.tex}`, then `\title{...}` (the project name, optionally a colon and a plain descriptive phrase), `\author{...}` (names from `repo.authors` or the notes, joined with `\and`; leave `\author{}` empty when no source names one), `\date{month year of lastDate}`, or `\date{}` when there is none (an omitted `\date` prints today's date), `\maketitle`, then `\begin{abstract}` ... `\end{abstract}` (one paragraph, about 120–180 words: problem, what was built, how, the main result if there is one), then numbered `\section`s (and `\subsection`s if needed) as in the outline. No `\subtitle`, no table of contents, no `\section*` except an unnumbered appendix, no bibliography unless the sources cite papers.
+- **Figures and tables are numbered and referenced.** Every `figure` and `table` has a `\caption` and a `\label{fig:...}`/`\label{tab:...}`, and the text refers to it before it appears: "\autoref{fig:loss} shows ..." or "as \autoref{tab:runs} lists". Table captions go above the table, figure captions below.
+- **Prose, not slides.** Paragraphs carry the content; use a list only for a genuine enumeration (at most one or two short lists in the paper). No bold run-in labels, no stat tiles, no `\drkpi`, no `\alert`, no slide layout macros.
+- **No boxes around text**: no `\drCallout`, `tcolorbox`, `\fbox`, `\colorbox` or `mdframed`. Emphasis is `\emph`, sparingly.
+- **Tone:** formal but plain, like a short systems or course-project paper. First person plural ("we") or singular ("I"), whichever the notes use. No marketing words.
+- **Page count**: the length is in pages and the exact count still applies; check it in main.pdf.
 
 **Slides** (`kind: slides`): `\documentclass[aspectratio=169,11pt]{beamer}`, `\input{theme.tex}`, then `\title`, `\subtitle` (a one-line summary), `\author`, `\date` as for a report, a title frame (`\begin{frame}\titlepage\end{frame}`), then the frames above. One idea per frame. Frames are top-aligned, so an underfilled frame shows as empty space at the bottom.
 - **Spread the blocks.** When a frame has two or more top-level blocks (a list, a table, a chart), put `\vfill` on its own line between them, so the last block sits at the foot of the frame and the gap goes between them. `\drFlow`, `\drTimeline` and `\drTwoCol` already end with one. Never put `\vfill` inside a list, a column or a frame with one block.
@@ -122,11 +125,11 @@ Never use `\usetheme`, `\usecolortheme`, `\usefonttheme`, `\useinnertheme`, `\us
 - **Emphasis.** At most one `\alert{}` per frame, for the sentence the judge must remember (e.g. `\alert` on the best row of a table).
 - **Frame titles** are 7 words or fewer. Numbers go in the body.
 
-**Images:** one image per frame or figure, at most 4 image frames in a deck and 3 figures in a report. Never tile thumbnails into a grid or collage. On slides use `\drImageRight{images/img1.png}{bullets}`; in a report `\includegraphics[width=0.8\linewidth,height=0.7\textheight,keepaspectratio]{images/img1.png}` in a `figure`. Either way, a caption or bullet says what it shows.
+**Images:** one image per frame or figure, at most 4 image frames in a deck and 3 image figures in a report. Never tile thumbnails into a grid or collage. On slides use `\drImageRight{images/img1.png}{bullets}`; in a report `\includegraphics[width=0.8\linewidth,height=0.7\textheight,keepaspectratio]{images/img1.png}` in a `figure`. Either way, a caption or bullet says what it shows.
 
 **Tables from user data:** you may show a `table_*.csv` as a booktabs table with `\pgfplotstabletypeset` (see charts.md). Never retype its numbers.
 
-**Timeline:** on slides `\drTimeline`; in a report a short list or tabular, one line per milestone. Each is the date and a plain rewording of the commit message (keep the meaning, drop prefixes like `feat:`). Don't add events that aren't in milestones or dated notes.
+**Timeline:** on slides `\drTimeline`; in a report a small booktabs table (date, event) inside the Implementation section, one row per milestone. Each is the date and a plain rewording of the commit message (keep the meaning, drop prefixes like `feat:`). Don't add events that aren't in milestones or dated notes.
 
 **Charts:** only via the snippets in charts.md, which read `data/*.csv`. **Never type a number into a chart** and never write or edit a CSV. No `height=`/`width=` in an axis: the theme sizes it.
 
