@@ -1,0 +1,65 @@
+% Sample report for the Paper and Midnight previews (scripts/previews.sh).
+\documentclass[11pt]{article}
+\input{theme.tex}
+
+\title{tidepool}
+\subtitle{A small self-hosted job queue for Node services}
+\author{Asha Rao, Leo Brandt}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\drkpi{104 ms}{p95 latency}\hfill\drkpi{99.2\%}{jobs succeed}\hfill\drkpi{1.8k}{jobs / min}\hfill\drkpi{0}{lost jobs}
+
+\bigskip
+
+tidepool runs background jobs for our Node services out of one Postgres table. We built it to replace a Redis queue that lost jobs on every failover, and to keep the job history in the same database as the rest of our data.
+
+\section{How it works}
+
+Each job is a row. Workers claim rows with \texttt{SELECT \dots{} FOR UPDATE SKIP LOCKED}, so two workers never take the same job and no lock server is needed.
+
+\begin{itemize}
+  \item Failed jobs back off exponentially and retry up to five times.
+  \item A small Go sidecar moves jobs past the retry cap into a review queue.
+  \item The dashboard reads the same table, so there is no second store to keep in sync.
+\end{itemize}
+
+\subsection{Latency}
+
+We tuned the claim query and the index on \texttt{run\_at} over eight weeks. The p95 time from enqueue to start fell from 212 ms to 104 ms.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[height=5cm, xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
+\addplot table[col sep=comma, x=week, y=p95]{data/latency.csv};
+\addplot table[col sep=comma, x=week, y=p50]{data/latency.csv};
+\legend{p95, p50}
+\end{axis}
+\end{tikzpicture}
+\caption{Enqueue-to-start latency by week.}
+\end{figure}
+
+\section{Failures}
+
+Most failed jobs were timeouts in calls to a slow payment API. Raising its timeout and moving it to its own worker pool removed about half of them.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}\drsafecats
+\begin{axis}[drbar, height=5cm, width=0.8\linewidth, xtick=data, xticklabels from table={data/failures.csv}{cause}, table/col sep=comma, ymin=0, enlarge x limits=0.12, nodes near coords]
+\addplot table[col sep=comma, x expr=\coordindex, y=count]{data/failures.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Failed jobs by cause over the eight weeks.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\drpie{data/languages.csv}{language}{lines}
+\caption{Lines of code by language.}
+\end{figure}
+
+\end{document}

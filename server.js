@@ -562,10 +562,10 @@ function sse(req, res, id) {
   req.on('close', () => { clearInterval(ping); job.clients.delete(res); });
 }
 
-function serveFile(res, file, type) {
+function serveFile(res, file, type, cache = 'no-store') {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return json(res, 404, { error: 'Not found' });
-    res.writeHead(200, { 'content-type': type, 'content-length': st.size, 'cache-control': 'no-store' });
+    res.writeHead(200, { 'content-type': type, 'content-length': st.size, 'cache-control': cache });
     fs.createReadStream(file).pipe(res);
   });
 }
@@ -575,8 +575,8 @@ const server = http.createServer((req, res) => {
   const p = url.pathname;
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(ROOT, 'index.html'), 'text/html; charset=utf-8');
   if (req.method === 'POST' && p === '/api/jobs') return createJob(req, res);
-  const pv = /^\/previews\/([a-z]+(?:-report)?)\.png$/.exec(p); // theme thumbnails for the pickers
-  if (req.method === 'GET' && pv && Object.hasOwn(THEMES, pv[1].replace(/-report$/, ''))) return serveFile(res, path.join(ROOT, '.claude/skills/devreport/themes/previews', pv[1] + '.png'), 'image/png');
+  const pv = /^\/previews\/([a-z]+)((?:-report)?(?:\.png|-[1-4]\.jpg))$/.exec(p); // theme thumbnails (.png) and preview pages (-N.jpg) for the pickers
+  if (req.method === 'GET' && pv && Object.hasOwn(THEMES, pv[1])) return serveFile(res, path.join(ROOT, '.claude/skills/devreport/themes/previews', pv[1] + pv[2]), pv[2].endsWith('.png') ? 'image/png' : 'image/jpeg', 'max-age=3600');
   const r = /^\/api\/jobs\/([^/]+)\/(revise|answers|theme)$/.exec(p);
   if (req.method === 'POST' && r) return !ID_RE.test(r[1]) ? json(res, 400, { error: 'Bad job id' }) : { revise: reviseJob, answers: answerJob, theme: switchTheme }[r[2]](req, res, r[1]);
   const m = /^\/api\/jobs\/([^/]+)\/(events|main\.pdf|main\.tex|v\d{1,3}\.pdf)$/.exec(p);

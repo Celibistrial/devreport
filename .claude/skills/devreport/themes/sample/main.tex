@@ -1,0 +1,59 @@
+% Sample deck for the theme previews (scripts/previews.sh). Uses only the shared dr* interface, like a real job.
+\documentclass[aspectratio=169,11pt]{beamer}
+\input{theme.tex}
+
+\title{tidepool}
+\subtitle{A small self-hosted job queue for Node services}
+\author{Asha Rao, Leo Brandt}
+\date{September 2026}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{How it works}
+\framesubtitle{One Postgres table, many workers}
+\begin{itemize}
+\item Jobs are rows; workers claim them with \texttt{SKIP LOCKED}.
+\item Failed jobs back off and retry up to five times.
+\item A Go sidecar drains dead letters into a review queue.
+\item The dashboard reads the same table, so there is no second store.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Results after eight weeks}
+\noindent\drkpi{104 ms}{p95 latency}\hfill\drkpi{99.2\%}{jobs succeed}\hfill\drkpi{1.8k}{jobs / min}\hfill\drkpi{0}{lost jobs}
+
+\medskip
+\centering
+\begin{tikzpicture}
+\begin{axis}[height=4.3cm, width=0.9\linewidth, xlabel={week}, ylabel={ms}, ymin=0, xtick=data, legend pos=north east]
+\addplot table[col sep=comma, x=week, y=p95]{data/latency.csv};
+\addplot table[col sep=comma, x=week, y=p50]{data/latency.csv};
+\legend{p95, p50}
+\end{axis}
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Where the failures came from}
+\begin{columns}[c]
+\begin{column}{0.55\linewidth}\centering
+\begin{tikzpicture}\drsafecats
+\begin{axis}[drbar, height=5.2cm, width=\linewidth, xtick=data, xticklabels from table={data/failures.csv}{cause}, table/col sep=comma, ymin=0, enlarge x limits=0.12, nodes near coords]
+\addplot table[col sep=comma, x expr=\coordindex, y=count]{data/failures.csv};
+\end{axis}
+\end{tikzpicture}
+
+{\drCaption Failed jobs by cause}
+\end{column}
+\begin{column}{0.42\linewidth}\centering
+\drpie[radius=1.5]{data/languages.csv}{language}{lines}
+
+{\drCaption Lines by language}
+\end{column}
+\end{columns}
+\end{frame}
+
+\end{document}
