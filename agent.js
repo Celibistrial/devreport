@@ -2,7 +2,8 @@
 //   node agent.js [--resume <session>] -p "<prompt>"     (cwd = the job folder)
 // The model gets four tools and nothing else: read_file, write_file, edit_file, compile, all confined to the job folder.
 // DEVREPORT_MODEL=<provider>:<model> picks the model: claude-code:<sonnet|opus|...> (local Claude Code login, for
-// testing) or openrouter:<model id> (OPENROUTER_API_KEY). Prints the stream-json lines server.js parses and keeps the
+// testing), openai-compatible:<model> (DEVREPORT_BASE_URL, optional DEVREPORT_API_KEY: Ollama, Groq, vLLM, ...), or
+// openrouter: / anthropic: / openai: / google:<model> with that provider's usual API key env var. Prints the stream-json lines server.js parses and keeps the
 // conversation in agent-messages.json so a run that stopped to ask questions can be resumed.
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -135,11 +136,37 @@ In the devreport skill below, Read means read_file, Write means write_file, Edit
 ${skill}`;
 }
 
-/** MCP-shaped result -> AI SDK tool output for the model
- * @returns {import('@ai-sdk/provider-utils').ToolResultOutput} */
-const toModelOutput = ({ output: o }) => (o.isError
+/** MCP-shaped result -> AI SDK tool output for the model; images become a note when the provider can't take them
+ * @returns {(r: {output: any}) => import('@ai-sdk/provider-utils').ToolResultOutput} */
+const toModelOutput = (images) => ({ output: o }) => (o.isError
   ? { type: 'error-text', value: o.content.map((c) => c.text || '').join('\n') }
-  : { type: 'content', value: o.content.map((c) => (c.type === 'image' ? { type: 'image-data', data: c.data, mediaType: c.mimeType } : { type: 'text', text: c.text })) });
+  : { type: 'content', value: o.content.map((c) => (c.type !== 'image' ? { type: 'text', text: c.text }
+    : images ? { type: 'file', mediaType: c.mimeType, data: { type: 'data', data: c.data } }
+    : { type: 'text', text: '[image not shown: this model can\'t see images here; rely on the compile result and the text files]' })) });
+
+// DEVREPORT_MODEL=<provider>:<model> -> an AI SDK model for the key-based providers (claude-code is set up in main).
+// Throws a message a user can act on for a bad spec or a missing key, before any request is made.
+const KEYS = { openrouter: 'OPENROUTER_API_KEY', anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', google: 'GOOGLE_GENERATIVE_AI_API_KEY' };
+async function resolveModel(spec, env = process.env) {
+  const i = spec.indexOf(':'), provider = i < 0 ? spec : spec.slice(0, i), modelId = i < 0 ? '' : spec.slice(i + 1).trim();
+  const known = ['claude-code', 'openai-compatible', ...Object.keys(KEYS)];
+  if (!known.includes(provider)) throw new Error(`Unknown provider "${provider}" in DEVREPORT_MODEL=${spec} (use ${known.join(', ')})`);
+  if (!modelId) throw new Error(`DEVREPORT_MODEL=${spec} names no model: use ${provider}:<model id>`);
+  const apiKey = env[KEYS[provider]];
+  if (KEYS[provider] && !apiKey) throw new Error(`${KEYS[provider]} is not set (DEVREPORT_MODEL=${spec} needs it)`);
+  switch (provider) {
+    case 'openai-compatible': {
+      if (!env.DEVREPORT_BASE_URL) throw new Error(`DEVREPORT_BASE_URL is not set (DEVREPORT_MODEL=${spec} needs the server's /v1 URL, e.g. http://127.0.0.1:11434/v1)`);
+      const { createOpenAICompatible } = await import('@ai-sdk/openai-compatible');
+      return createOpenAICompatible({ name: 'openai-compatible', baseURL: env.DEVREPORT_BASE_URL, apiKey: env.DEVREPORT_API_KEY || undefined })(modelId);
+    }
+    case 'openrouter': return (await import('@openrouter/ai-sdk-provider')).createOpenRouter({ apiKey })(modelId);
+    case 'anthropic': return (await import('@ai-sdk/anthropic')).createAnthropic({ apiKey })(modelId);
+    case 'openai': return (await import('@ai-sdk/openai')).createOpenAI({ apiKey })(modelId);
+    case 'google': return (await import('@ai-sdk/google')).createGoogle({ apiKey })(modelId);
+    default: throw new Error('claude-code is not an AI SDK key provider'); // main handles it before calling this
+  }
+}
 
 async function main() {
   const argv = process.argv.slice(2), arg = (f) => { const i = argv.indexOf(f); return i === -1 ? undefined : argv[i + 1]; };
@@ -167,7 +194,7 @@ async function main() {
   const abort = new AbortController(); // the server's timeout SIGTERMs us: stop the model (and claude-code's subprocess) too
   process.on('SIGTERM', () => { abort.abort(); setTimeout(() => process.exit(1), 3000); });
 
-  let model, tools, prefix = '', extra = {};
+  let model, tools, images, prefix = '', extra = {};
   /** @type {{tools?: string[]} | null} */ let ccInit = null; // Claude Code's init message
   if (provider === 'claude-code') {
     // Claude Code runs the loop and its own tools; ours go in as an in-process MCP server, and every built-in is off
@@ -189,13 +216,12 @@ async function main() {
       resume: saved?.claudeSession, // its own transcript is richer than our replayed one (images, exact tool results)
       onSdkMessage: (m) => { if (m.type === 'system' && m.subtype === 'init') ccInit = m; },
     });
-  } else if (provider === 'openrouter') {
-    if (!process.env.OPENROUTER_API_KEY) { console.error('OPENROUTER_API_KEY is not set'); process.exit(1); }
-    const { createOpenRouter } = await import('@openrouter/ai-sdk-provider');
-    model = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY })(modelId);
-    tools = Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, tool({ description: t.description, inputSchema: z.object(t.shape), execute: wrap(t.run), toModelOutput })]));
+  } else {
+    try { model = await resolveModel(spec); } catch (e) { console.error(e.message); process.exit(2); }
+    images = provider !== 'openai-compatible'; // it sends tool-result images as JSON text: base64 into the context
+    tools = Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, tool({ description: t.description, inputSchema: z.object(t.shape), execute: wrap(t.run), toModelOutput: toModelOutput(images) })]));
     extra = { instructions: system, tools, stopWhen: isStepCount(MAX_STEPS) };
-  } else { console.error(`Unknown provider in DEVREPORT_MODEL=${spec} (use claude-code:<model> or openrouter:<model>)`); process.exit(2); }
+  }
 
   const history = saved?.messages || [];
   const userMsg = { role: 'user', content: prompt };
@@ -245,4 +271,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { resolveInJob, compile, editFile, writeFile, readFile, SKILL_DIR };
+module.exports = { resolveModel, resolveInJob, compile, editFile, writeFile, readFile, SKILL_DIR };

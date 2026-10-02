@@ -370,3 +370,19 @@ test('describeTool understands the ai engine tool names', () => {
   assert.deepStrictEqual(describeTool('read_file', { path: '../../.claude/skills/devreport/charts.md' }, '/x/jobs/a'), ['skill', 'Reading the playbook (charts.md)']);
   assert.deepStrictEqual(describeTool('edit_file', { path: 'main.tex' }), ['edit', 'Editing main.tex']);
 });
+
+test('resolveModel parses provider:model and names the missing setting', async () => {
+  const { resolveModel } = require('./agent');
+  const m = await resolveModel('openai-compatible:qwen3:8b', { DEVREPORT_BASE_URL: 'http://127.0.0.1:11434/v1' });
+  assert.strictEqual(m.modelId, 'qwen3:8b'); // only the first colon splits
+  assert.match(m.provider, /^openai-compatible/);
+  assert.strictEqual((await resolveModel('openrouter:anthropic/claude-sonnet-4.5', { OPENROUTER_API_KEY: 'k' })).modelId, 'anthropic/claude-sonnet-4.5');
+  for (const [p, key] of [['anthropic', 'ANTHROPIC_API_KEY'], ['openai', 'OPENAI_API_KEY'], ['google', 'GOOGLE_GENERATIVE_AI_API_KEY'], ['openrouter', 'OPENROUTER_API_KEY']]) {
+    await assert.rejects(resolveModel(`${p}:some-model`, {}), new RegExp(`${key} is not set`));
+    assert.strictEqual((await resolveModel(`${p}:some-model`, { [key]: 'k' })).modelId, 'some-model');
+  }
+  await assert.rejects(resolveModel('openai-compatible:llama3', {}), /DEVREPORT_BASE_URL is not set/);
+  await assert.rejects(resolveModel('openai:', { OPENAI_API_KEY: 'k' }), /names no model/);
+  await assert.rejects(resolveModel('gpt-5', {}), /Unknown provider "gpt-5"/);
+  await assert.rejects(resolveModel('mistral:large', {}), /Unknown provider "mistral".*openai-compatible/);
+});
