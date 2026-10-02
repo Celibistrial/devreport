@@ -319,6 +319,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
     <section class="sec">
       <h2><small>04</small>Context <span class="opt">optional</span></h2>
       <label class="q"><span>What problem does it solve and who is it for?</span><textarea name="problem" placeholder="A study planner for first-years who keep missing deadlines…"></textarea></label>
+      <label class="q"><span>What result are you proudest of, and how did you measure it?</span><textarea name="proud" placeholder="40 classmates used it in week one; page load went from 3 s to 400 ms…"></textarea></label>
       <label class="q"><span>What did you learn, and what was hard?</span><textarea name="learned" placeholder="First time using websockets; the reconnect logic took two days…"></textarea></label>
       <label class="q"><span>What's next?</span><textarea name="next" placeholder="Calendar sync, then a mobile build…"></textarea></label>
       <p class="hint" style="margin-top:-4px">Blank is fine. devreport leaves out what it doesn't know rather than inventing it.</p>
@@ -450,7 +451,7 @@ form.addEventListener('submit', (e) => {
     if (checked('kind') !== 'slides') { $('#formerr').textContent = 'PowerPoint templates are for slides. Switch the format to Slides.'; return; }
     fd.append('template', tplFile, tplFile.name);
   }
-  for (const k of ['problem', 'learned', 'next']) fd.append(k, form.elements[k].value);
+  for (const k of ['problem', 'proud', 'learned', 'next']) fd.append(k, form.elements[k].value);
 
   feed.innerHTML = ''; $('#formerr').textContent = ''; $('#jobid').textContent = '';
   t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);

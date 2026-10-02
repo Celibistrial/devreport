@@ -358,7 +358,7 @@ async function createJob(req, res) {
       await fsp.writeFile(path.join(inputDir, name), f.data);
       if (/\.zip$/i.test(name)) zips.push(name);
     }
-    const qs = [['What problem does it solve and who is it for?', fields.problem], ['What did I learn, and what was hard?', fields.learned], ["What's next?", fields.next]]
+    const qs = [['What problem does it solve and who is it for?', fields.problem], ['Proudest result (and how it was measured)', fields.proud], ['What did I learn, and what was hard?', fields.learned], ["What's next?", fields.next]]
       .filter(([, a]) => a && a.trim());
     if (qs.length) await fsp.writeFile(path.join(inputDir, 'answers.md'), qs.map(([q, a]) => `## ${q}\n\n${a.trim()}\n`).join('\n'));
 
