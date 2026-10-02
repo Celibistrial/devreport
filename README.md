@@ -72,11 +72,12 @@ Requirements: macOS or Linux, Node 22+, [`tectonic`](https://tectonic-typesettin
 brew install tectonic          # Linux: see https://tectonic-typesetting.github.io
 git clone https://github.com/Celibistrial/devreport && cd devreport
 npm install                    # AI SDK packages for the ai engine; the cli engine's server is Node stdlib only
+cp .env.example .env           # pick the engine/model and paste your API key (optional for the default engine)
 node --test test.js            # 18 tests; bare `node --test` would also pick up tests inside cloned jobs/
 node server.js                 # http://127.0.0.1:3000  (PORT=3002 node server.js for another port)
 ```
 
-A run takes about 1–3 minutes with a strong model and runs on **your own** credentials: a Claude Code login, or an API key for any supported provider (OpenRouter, OpenAI, Anthropic, Google, or any OpenAI-compatible server such as Groq, DeepSeek or a local Ollama). See [Engines](#engines). There is no public hosted version on purpose, since it would run strangers' jobs on one person's account.
+A run takes about 1–3 minutes with a strong model and runs on **your own** credentials: a Claude Code login, or an API key for any supported provider (OpenRouter, OpenAI, Anthropic, Google, or any OpenAI-compatible server such as Groq, DeepSeek or a local Ollama). Settings and keys live in `.env` (gitignored; see `.env.example`), and real environment variables override it. See [Engines](#engines). There is no public hosted version on purpose, since it would run strangers' jobs on one person's account.
 
 ## Engines
 
@@ -100,6 +101,8 @@ With `claude-code`, our tools go in as an in-process MCP server and every built-
 
 ```bash
 npm install
+# in .env:  DEVREPORT_ENGINE=ai  DEVREPORT_MODEL=claude-code:opus
+# or inline, e.g.:
 DEVREPORT_ENGINE=ai DEVREPORT_MODEL=claude-code:opus node server.js
 DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai:gpt-5 OPENAI_API_KEY=sk-... node server.js
 DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai-compatible:llama-3.3-70b-versatile \

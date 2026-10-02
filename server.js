@@ -9,6 +9,7 @@ const { promisify } = require('node:util');
 const run = promisify(execFile);
 
 const ROOT = __dirname;
+try { process.loadEnvFile(path.join(ROOT, '.env')); } catch {} // settings and API keys from .env; real env vars still win
 const JOBS = path.join(ROOT, 'jobs');
 const PORT = +process.env.PORT || 3000;
 const MAX_UPLOAD = 50 * 1024 * 1024;

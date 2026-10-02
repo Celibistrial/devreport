@@ -10,6 +10,7 @@ const fsp = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+try { process.loadEnvFile(path.join(__dirname, '.env')); } catch {} // same .env as server.js when run on its own
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const run = promisify(execFile);
