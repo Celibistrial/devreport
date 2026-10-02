@@ -5,3 +5,5 @@ node_modules/
 research/
 .claude/worktrees/
 .env
+demo/dist/
+.vercel

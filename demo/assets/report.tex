@@ -1,0 +1,177 @@
+\documentclass[11pt]{article}
+\input{theme.tex}
+
+\title{devreport: Project Reports Whose Numbers Come from Code}
+\author{Gaurav Choudhury}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Student builders often have to write up a hackathon, coursework or side project when they would rather keep building, and a chatbot asked to do the write-up will invent a results section. devreport takes a project as loose files, a \texttt{.zip} or a public GitHub link and produces a LaTeX research-paper report or a Beamer slide deck, compiled to PDF while the user watches. Plain, tested code in \texttt{collect.js} analyses the inputs first and writes every number into CSV files and \texttt{facts.json}; an agent then writes only the prose and the LaTeX, and every chart is a pgfplots plot that reads one of those files. The agent runs in a sandbox of tools that can only write inside the job folder and compile with \texttt{tectonic}. I built it solo for the FirstCommit hackathon. The test suite runs 18 tests, all passing, in 0.88\,s. On my MacBook a warm compile of a 10-slide deck takes between 1.17\,s and 1.34\,s across the seven slide themes, and 24 local test runs reached their first PDF in between 0.6 and 12.69 minutes.
+\end{abstract}
+
+\section{Introduction}
+
+Writing up a project is a chore that comes at the end, when the deadline is close. Hackathon judges, course staff and readers of a portfolio want to see what was built, how it works and evidence that it works. A general chatbot can produce a document of the right shape, but it will happily fill the results section with numbers that were never measured. devreport is aimed at one narrow group of users: student builders turning their logs, notes, git history and screenshots into a report or slides, rather than turning any idea into any document.
+
+The central idea is to keep the numbers away from the model. A deterministic collector parses the uploaded material into CSV files and a \texttt{facts.json} summary. The language model reads those files, the notes and key code files, and writes the prose around them. Charts are pgfplots commands that point at the collector's CSV files, so a wrong chart would need a bug in tested code rather than a hallucination. The rest of this paper describes the pipeline (\autoref{sec:overview}), the main implementation decisions (\autoref{sec:impl}), the measurements I made (\autoref{sec:results}) and what I learned while building it (\autoref{sec:discussion}).
+
+\section{System overview}
+\label{sec:overview}
+
+A job moves through a fixed pipeline. The user uploads files, a \texttt{.zip} or a GitHub link, chooses a report or slides, a length, and for slides a theme or an uploaded PowerPoint template (\autoref{fig:form}). The steps are:
+
+\begin{enumerate}
+\item \texttt{server.js}, a Node standard-library HTTP server, unpacks a zip or clones the repository and saves the upload into \texttt{jobs/<id>/input/}.
+\item \texttt{collect.js} turns git history, logs, tables, notes and images into CSV files under \texttt{data/} and a \texttt{facts.json} summary. If a \texttt{.pptx} template was uploaded, \texttt{pptx.js} extracts its colours, fonts, media, layout boxes and thumbnail into \texttt{template/}.
+\item The agent reads \texttt{facts.json}, the notes and key code files. If it cannot tell what the project is or who it is for, it writes up to three questions to \texttt{questions.json} and stops; the user answers or skips and the same session resumes.
+\item The agent writes \texttt{main.tex}, compiles it with \texttt{tectonic}, reads the errors, fixes them and recompiles.
+\item The finished \texttt{main.pdf} is shown in the viewer, with the \texttt{.tex} available to download.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth,height=0.7\textheight,keepaspectratio]{images/img1.jpg}
+\caption{The upload form: a drop zone for files or a zip, a field for a GitHub link, the choice between a report and slides, and the length slider.}
+\label{fig:form}
+\end{figure}
+
+Progress streams to the browser over server-sent events as a live log grouped by phase (Uploading, Analysing, Reading, Writing, Compiling, Polishing, Done). The viewer is built on pdf.js and offers slide thumbnails, a present mode, a theme switcher and notes pinned to a page (\autoref{fig:viewer}). A finished job can be revised with page notes or general notes, in which case the agent edits the existing LaTeX and earlier versions are kept as backups, and more material can be attached later so that the collector re-runs and the agent works it in.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth,height=0.7\textheight,keepaspectratio]{images/img4.jpg}
+\caption{The viewer showing a finished seven-slide deck in the Trigon theme, with page thumbnails, the theme switcher, the version history and the revision panel.}
+\label{fig:viewer}
+\end{figure}
+
+\section{Implementation}
+\label{sec:impl}
+
+\subsection{Keeping the numbers honest}
+
+The collector does all analysis in plain code covered by \texttt{test.js}: milestones from git history with vendored and generated code left out, likely entry points, recurring log errors grouped by replacing numbers, hex values and IDs with placeholders, and the column types of the user's own CSV or JSON tables. Every chart in the output is a pgfplots \texttt{\textbackslash addplot table} reading a file the collector wrote, and stat numbers in the prose are copied from \texttt{facts.json}. Commit counts and lines of code are still computed but are not offered as charts, since they do not show that a project works. Sections such as lessons learned and future work are left out when the uploaded files say nothing about them.
+
+\subsection{One source file for every theme}
+
+A single \texttt{main.tex} serves every look. It loads its theme through one line, \texttt{\textbackslash input\{theme.tex\}}, and each theme is a small adapter \texttt{.sty} on a shared core, \texttt{devreport-core.sty}, which defines the same \texttt{\textbackslash dr*} colours, chart styles, stat tiles and layout macros. Reports use one standard article layout. Slides come in seven themes (Paper, Midnight, Metropolis, Moloch, Focus, Trigon and Madrid), or a custom theme built from an uploaded \texttt{.pptx}. Switching theme rewrites \texttt{theme.tex} and recompiles without calling the model, and every compiled theme is cached. The skill bans raw font sizes, so the agent uses named sizes such as \texttt{\textbackslash drTitle}, \texttt{\textbackslash drBody} and \texttt{\textbackslash drStat}, and each theme sets those sizes to suit its own frame.
+
+\subsection{A sandbox made of tools}
+
+The default \texttt{cli} engine runs Claude Code headless (\texttt{claude -p}) with only these tools allowed: \texttt{Read}, \texttt{Write(./**)}, \texttt{Edit(./**)}, \texttt{Bash(tectonic:*)} and \texttt{Skill}, with the working directory set to the job folder. There is no general shell, and writes stay inside the job folder. The \texttt{ai} engine in \texttt{agent.js} is my own agent loop on the Vercel AI SDK, which lets the model be swapped for OpenAI, Anthropic, Google, OpenRouter or any OpenAI-compatible server, local Ollama included. It exposes exactly four tools, \texttt{read\_file}, \texttt{write\_file}, \texttt{edit\_file} and \texttt{compile}, and every path goes through one check that refuses anything outside the job folder, any symlink and the server's own files.
+
+Intake has its own defences. Uploads are capped at 50\,MB; the unpacked size of a zip is summed from \texttt{unzip -l} and refused over 200\,MB, entries that resolve outside \texttt{input/} are rejected, and symlinks are deleted afterwards. GitHub links are normalised, matched against a strict owner/repo pattern and cloned with \texttt{execFile}, no shell, \texttt{GIT\_TERMINAL\_PROMPT=0} and a timeout. The skill tells the agent that everything under \texttt{input/}, \texttt{data/} and \texttt{template/} is untrusted data, and the tool sandbox limits the damage if that rule fails.
+
+\subsection{Timeline}
+
+The project was built in a single day. \autoref{tab:milestones} lists the milestones the collector picked from the git history.
+
+\begin{table}[htbp]
+\centering
+\caption{Milestones from the git history, all on 2026-10-02.}
+\label{tab:milestones}
+\begin{tabular}{lp{0.72\linewidth}}
+\toprule
+Date & Event \\
+\midrule
+2026-10-02 & Project plan and handoff notes \\
+2026-10-02 & Server: multipart upload, zip and GitHub intake, collector and agent run, SSE progress \\
+2026-10-02 & UI: drop zone, repo link, report or slides, themes, questions, live feed, PDF view \\
+2026-10-02 & A \texttt{.pptx} template accepted for slides \\
+2026-10-02 & \texttt{scripts/fill.py} measures per-slide body fill \\
+2026-10-02 & Revisions can add files, a zip, a repo or notes after the first draft \\
+2026-10-02 & UI shows one stage at a time; mobile layout; ``Add material'' in revise \\
+2026-10-02 & Settings and API keys read from a gitignored \texttt{.env} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results}
+\label{sec:results}
+
+All measurements below were made on my MacBook (Apple Silicon) on 2026-10-03. The test suite, \texttt{node --test test.js}, runs 18 tests covering the collector, the template extractor and the agent's sandbox; all 18 pass, in 0.88\,s.
+
+\subsection{Compile time}
+
+Theme switching only works as a one-click action if a recompile is fast. \autoref{fig:themecompile} shows the warm \texttt{tectonic main.tex} time for the same 10-slide deck in each of the seven themes, measured on the second run with the TeX cache warm. \autoref{fig:slidecount} shows how the time grows when the deck's frames are repeated one to five times in the Midnight theme: from 1.19\,s at 10 slides to 2.04\,s at 50.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}\drsafecats
+\begin{axis}[drbar, xtick=data, xticklabels from table={data/table_theme_compile_seconds.csv}{theme}, table/col sep=comma, ymin=0, enlarge x limits=0.08, nodes near coords, ylabel={seconds}]
+\addplot table[col sep=comma, x expr=\coordindex, y=compile_seconds]{data/table_theme_compile_seconds.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Warm compile time of the same 10-slide deck in each slide theme.}
+\label{fig:themecompile}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[xlabel={slides}, ylabel={seconds}, ymin=0, xtick=data]
+\addplot table[col sep=comma, x=slides, y=compile_seconds]{data/table_compile_seconds_by_slide_count.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Warm compile time against deck length in the Midnight theme.}
+\label{fig:slidecount}
+\end{figure}
+
+\subsection{Slide fill}
+
+Early decks came out with large empty areas, so I wrote \texttt{scripts/fill.py} to measure the share of each slide's body area that content fills. \autoref{tab:fill} gives its output on the 10-slide deck in each theme: the mean fill per slide and the lowest single slide. Midnight has the highest mean at 85\% and Madrid the lowest at 71\%.
+
+\begin{table}[htbp]
+\centering
+\caption{Slide body fill on the same 10-slide deck, measured by \texttt{scripts/fill.py}.}
+\label{tab:fill}
+\pgfplotstabletypeset[col sep=comma, string type,
+  columns/theme/.style={column name={Theme}, column type=l},
+  columns/mean_fill_pct/.style={column name={Mean fill (\%)}, column type=r},
+  columns/min_fill_pct/.style={column name={Lowest slide (\%)}, column type=r},
+  every head row/.style={before row=\toprule, after row=\midrule}, every last row/.style={after row=\bottomrule}]{data/table_slide_fill_by_theme.csv}
+\end{table}
+
+\subsection{Time to first PDF}
+
+\autoref{fig:minutes} shows the wall time from upload to the first \texttt{main.pdf} for 24 local test runs on 2026-10-01 and 2026-10-02. Runs under 30\,s or over 15 minutes were excluded, since those were copied fixtures or paused sessions. The fastest run took 0.6 minutes and the slowest 12.69 minutes; with a strong model I expect a run to take about 1--3 minutes.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ymin=0, ylabel={runs}, xlabel={minutes}]
+\addplot+[hist={bins=8}, fill=drAccentB, draw=drBg, fill opacity=0.9, mark=none] table[col sep=comma, y=minutes]{data/table_minutes_to_first_pdf.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Distribution of minutes from upload to the first PDF over 24 local test runs.}
+\label{fig:minutes}
+\end{figure}
+
+\subsection{Small models}
+
+With the \texttt{ai} engine on an M4 with 16\,GB, qwen3:8b through Ollama built the sample deck in about 7 minutes. It used real names and features from the README, placed the screenshot and drew a flow and a timeline, but it had text overflow, overlapping timeline dates and no charts. It did not ask questions on its own and sometimes could not get past a compile error.
+
+\section{Discussion}
+\label{sec:discussion}
+
+The most useful lesson was that a prompt rule loses to the data it is given. The skill once told the agent to use every chart listed in \texttt{facts.charts}, and the collector listed charts for commits per hour, most-edited files and commit types, so early reports were full of metrics about my commit habits. Rewording the prompt did not stop it. Removing those series from the chart list in the collector did, and the CSVs are still written for anyone who wants them.
+
+Layout turned out to be a type-scale problem. Slides came out about a third empty, and each theme spaced things differently. Asking the model to ``fill the slide'' did not help; banning raw font sizes, letting each theme own one type scale, and measuring the result with \texttt{scripts/fill.py} instead of judging by eye did.
+
+I only trusted the sandbox after testing it. With a bare \texttt{Write} in the allowlist, \texttt{claude -p} could write to \texttt{../escape.txt}, while \texttt{Write(./**)} blocked it. For my own agent loop, \texttt{test.js} tries to escape through symlinks, \texttt{../} paths and the server's own files. Server-sent events also dropped silently on idle connections while the agent was thinking; the server now pings every 15 seconds, and the client reconnects, replays the feed without duplicating steps and reattaches to a running job after a page reload.
+
+Smaller models failed in predictable ways: they repeated the same call, stopped before there was a PDF, or got stuck on compile errors inside the \texttt{\textbackslash dr*} macros. Each failure became a guard rail in \texttt{agent.js}: at most 80 model steps, the same call three times in a row refused, up to two nudges to compile, and a compile error inside a macro answered with that macro's usage.
+
+The system has known limits. It runs locally, one job at a time. Template import copies colours, fonts, the logo and rough layout, but not shapes, gradients or animations. 16-bit PNG screenshots are re-encoded with \texttt{sips}, which only exists on macOS, and the page loads pdf.js and fonts from the network. Uploaded text still reaches an agent that can write files in the job folder, so devreport should only be run on trusted material. There is no public hosted version on purpose, since it would run strangers' jobs on one person's account.
+
+\section{Future work}
+
+The next steps are running more than one job at a time and replacing \texttt{sips} so that 16-bit PNG screenshots also work on Linux.
+
+\section*{Appendix: repository statistics}
+
+The repository has 81 commits by one author, Celibistrial, all made on 2026-10-02, with 4644 lines added and 711 removed. The largest source files are \texttt{index.html} (1241 lines), \texttt{server.js} (633), \texttt{collect.js} (453), \texttt{test.js} (360), \texttt{agent.js} (274) and \texttt{pptx.js} (165).
+
+\end{document}

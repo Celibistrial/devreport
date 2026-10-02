@@ -1,0 +1,15 @@
+# allowlist: the static demo needs only these (jobs/ and .env must never upload)
+/*
+!/index.html
+!/vercel.json
+!/demo
+/demo/dist
+!/.claude
+/.claude/*
+!/.claude/skills
+/.claude/skills/*
+!/.claude/skills/devreport
+/.claude/skills/devreport/*
+!/.claude/skills/devreport/themes
+/.claude/skills/devreport/themes/*
+!/.claude/skills/devreport/themes/previews
