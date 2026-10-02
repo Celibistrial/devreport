@@ -24,8 +24,12 @@ const RESUME = {
   answered: 'The user answered your questions: read input/answers.md and continue building; do not ask again.',
   skipped: "The user skipped the questions: continue with what you have, leave out what you can't source; do not ask again.",
 };
+// theme -> the formats it supports; custom (a .pptx template) is slides only and needs the job's template
+const THEMES = { paper: ['report', 'slides'], midnight: ['report', 'slides'], metropolis: ['slides'], moloch: ['slides'], focus: ['slides'], trigon: ['slides'], madrid: ['slides'], custom: ['slides'] };
+const COMPILE_TIMEOUT = 60000;
 const jobs = new Map(); // id -> { events: [], from, clients: Set, finished }; a revision replays events from `from`
 let busy = null; // ponytail: one job at a time (429 otherwise); add a queue if several users share a server
+const switching = new Set(); // job ids whose theme is being recompiled
 
 // ---------- events ----------
 function emit(id, type, data) {
@@ -191,7 +195,25 @@ async function setStatus(jobDir, status, extra = {}) {
   const j = JSON.parse(await fsp.readFile(f, 'utf8'));
   await fsp.writeFile(f, JSON.stringify({ ...j, ...extra, status }, null, 2));
 }
-const doneData = (id, j) => ({ pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, kind: j.kind, version: (j.revisions || 0) + 1 });
+const doneData = (id, j) => ({ pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, kind: j.kind, version: (j.revisions || 0) + 1, theme: j.theme, template: !!j.template });
+
+// ---------- themes ----------
+// null when `theme` is allowed for job `j` ({kind, template}), else why not
+function themeError(theme, j) {
+  if (typeof theme !== 'string' || !Object.hasOwn(THEMES, theme)) return 'Unknown theme';
+  if (theme === 'custom' && !j.template) return 'This job has no PowerPoint template';
+  if (!THEMES[theme].includes(j.kind)) return `${theme[0].toUpperCase() + theme.slice(1)} is a slides theme; reports come in Paper or Midnight`;
+  return null;
+}
+// main.tex only says \input{theme.tex}; this one line picks the theme
+const themeTex = (theme) => `\\usepackage{${theme === 'custom' ? 'template/devreport-custom' : `../../.claude/skills/devreport/themes/devreport-${theme}`}}\n`;
+const writeThemeTex = (jobDir, theme) => fsp.writeFile(path.join(jobDir, 'theme.tex'), themeTex(theme));
+// older jobs named the theme in main.tex: point that line at theme.tex instead. false if there's no theme line at all
+function useThemeTex(tex) {
+  if (/^\s*\\input\{theme(\.tex)?\}/m.test(tex)) return tex;
+  const re = /^\s*\\usepackage\{(?:\.\.\/\.\.\/\.claude\/skills\/devreport\/themes\/devreport-[a-z]+|template\/devreport-custom)\}[ \t]*$/m;
+  return re.test(tex) ? tex.replace(re, '\\input{theme.tex}') : false;
+}
 
 // runs fn; any throw marks the job failed. Releases the busy guard either way
 async function guarded(id, jobDir, fn) {
@@ -388,7 +410,7 @@ async function revise(id, jobDir, n, j, { general, pages }) {
 async function reviseJob(req, res, id) {
   const jobDir = path.join(JOBS, id);
   let j; try { j = JSON.parse(await fsp.readFile(path.join(jobDir, 'job.json'), 'utf8')); } catch { return json(res, 404, { error: 'No such job' }); }
-  if (busy) return json(res, 409, { error: 'A report is being generated or revised. Try again when it finishes.' });
+  if (busy || switching.has(id)) return json(res, 409, { error: 'A report is being generated, revised or re-themed. Try again when it finishes.' });
   if (j.status !== 'done' || !fs.existsSync(path.join(jobDir, 'main.pdf')) || !fs.existsSync(path.join(jobDir, 'main.tex')))
     return json(res, 409, { error: 'This job has no finished PDF to revise' });
   if (+req.headers['content-length'] > 64 * 1024) return json(res, 413, { error: 'Feedback is too long' });
@@ -402,6 +424,57 @@ async function reviseJob(req, res, id) {
   jobs.set(id, job);
   json(res, 202, { revision: n, version: n + 1 });
   revise(id, jobDir, n, j, feedback);
+}
+
+// ---------- instant theme switch: write theme.tex, run tectonic directly (no Claude) ----------
+// themes/<name>.pdf caches each compiled theme; themes/key holds a hash of main.tex (+ the custom .sty), so a revision invalidates it
+async function switchTheme(req, res, id) {
+  const jobDir = path.join(JOBS, id), tex = path.join(jobDir, 'main.tex'), pdf = path.join(jobDir, 'main.pdf'), cache = path.join(jobDir, 'themes');
+  let j; try { j = JSON.parse(await fsp.readFile(path.join(jobDir, 'job.json'), 'utf8')); } catch { return json(res, 404, { error: 'No such job' }); }
+  if (busy === id || switching.has(id) || j.status !== 'done' || !fs.existsSync(pdf) || !fs.existsSync(tex))
+    return json(res, 409, { error: 'The theme can only change on a finished PDF that is not being revised' });
+  let theme;
+  try { theme = JSON.parse(await readBody(req, 1024, 'Body is too long')).theme; } catch (e) { return json(res, e.status || 400, { error: e.status ? e.message : 'Body must be JSON' }); }
+  const bad = themeError(theme, j);
+  if (bad) return json(res, 400, { error: bad });
+  const started = Date.now(), url = () => `/api/jobs/${id}/main.pdf?v=${Date.now()}`;
+  if (theme === j.theme) return json(res, 200, { theme, pdf: url(), ms: 0, cached: true });
+  switching.add(id);
+  const oldThemeTex = await fsp.readFile(path.join(jobDir, 'theme.tex'), 'utf8').catch(() => null), oldPdf = await fsp.readFile(pdf);
+  try {
+    const src = await fsp.readFile(tex, 'utf8'), fixed = useThemeTex(src);
+    if (fixed === false) throw Object.assign(new Error("This document doesn't load its theme through theme.tex"), { status: 409 });
+    if (fixed !== src) await fsp.writeFile(tex, fixed);
+    const sty = await fsp.readFile(path.join(jobDir, 'template', 'devreport-custom.sty'), 'utf8').catch(() => '');
+    const key = crypto.createHash('sha1').update(fixed).update('\0').update(sty).digest('hex');
+    if ((await fsp.readFile(path.join(cache, 'key'), 'utf8').catch(() => '')) !== key) {
+      await fsp.rm(cache, { recursive: true, force: true });
+      await fsp.mkdir(cache);
+      await fsp.writeFile(path.join(cache, 'key'), key);
+    }
+    await fsp.writeFile(path.join(cache, `${j.theme}.pdf`), oldPdf); // switching back is a copy
+    const hit = path.join(cache, `${theme}.pdf`), cached = fs.existsSync(hit);
+    await writeThemeTex(jobDir, theme);
+    if (cached) await fsp.copyFile(hit, pdf);
+    else {
+      try { await run('tectonic', ['main.tex'], { cwd: jobDir, timeout: COMPILE_TIMEOUT, maxBuffer: 16 * 1024 * 1024 }); }
+      catch (e) {
+        const why = e.killed ? `timed out after ${COMPILE_TIMEOUT / 1000} s` : (String(e.stderr || '').split('\n').find((l) => /^error|^!/.test(l)) || e.message).trim().slice(0, 300);
+        throw Object.assign(new Error(`It didn't compile in ${theme}: ${why}`), { status: 422 });
+      }
+      await fsp.copyFile(pdf, hit);
+    }
+    await setStatus(jobDir, 'done', { theme });
+    const ev = jobs.get(id)?.events.findLast((e) => e.type === 'done'); // a reload replays this event
+    if (ev) ev.data.theme = theme;
+    json(res, 200, { theme, pdf: url(), ms: Date.now() - started, cached });
+  } catch (e) {
+    if (oldThemeTex !== null) await fsp.writeFile(path.join(jobDir, 'theme.tex'), oldThemeTex).catch(() => {});
+    await fsp.writeFile(pdf, oldPdf).catch(() => {});
+    json(res, e.status || 500, { error: e.message });
+  } finally {
+    switching.delete(id);
+  }
 }
 
 // ---------- http ----------
@@ -433,7 +506,9 @@ async function createJob(req, res) {
     // a .pptx template only applies to slides; for a report it's ignored
     const pptx = kind === 'slides' && fields.theme === 'custom' ? files.find((f) => f.name === 'template') : null;
     if (pptx && !/\.pptx$/i.test(pptx.filename)) throw new Error('The template must be a .pptx file');
-    const theme = pptx ? 'custom' : fields.theme === 'midnight' ? 'midnight' : 'paper';
+    const theme = pptx ? 'custom' : fields.theme && fields.theme !== 'custom' ? fields.theme : 'paper';
+    const bad = themeError(theme, { kind, template: !!pptx });
+    if (bad) throw new Error(bad);
     const repoUrl = normalizeRepoUrl(fields.repoUrl);
     const length = parseLength(fields.length, kind);
     const inputs = files.filter((f) => f.name !== 'template');
@@ -444,6 +519,7 @@ async function createJob(req, res) {
     await fsp.mkdir(inputDir, { recursive: true });
     const j = { id, kind, theme, length, ...(pptx && { template: true }), status: 'queued', createdAt: new Date().toISOString() };
     await fsp.writeFile(path.join(jobDir, 'job.json'), JSON.stringify(j, null, 2));
+    await writeThemeTex(jobDir, theme);
     if (pptx) await fsp.writeFile(path.join(jobDir, 'template.pptx'), pptx.data);
 
     const taken = new Set(), zips = [];
@@ -499,8 +575,10 @@ const server = http.createServer((req, res) => {
   const p = url.pathname;
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(ROOT, 'index.html'), 'text/html; charset=utf-8');
   if (req.method === 'POST' && p === '/api/jobs') return createJob(req, res);
-  const r = /^\/api\/jobs\/([^/]+)\/(revise|answers)$/.exec(p);
-  if (req.method === 'POST' && r) return !ID_RE.test(r[1]) ? json(res, 400, { error: 'Bad job id' }) : r[2] === 'revise' ? reviseJob(req, res, r[1]) : answerJob(req, res, r[1]);
+  const pv = /^\/previews\/([a-z]+(?:-report)?)\.png$/.exec(p); // theme thumbnails for the pickers
+  if (req.method === 'GET' && pv && Object.hasOwn(THEMES, pv[1].replace(/-report$/, ''))) return serveFile(res, path.join(ROOT, '.claude/skills/devreport/themes/previews', pv[1] + '.png'), 'image/png');
+  const r = /^\/api\/jobs\/([^/]+)\/(revise|answers|theme)$/.exec(p);
+  if (req.method === 'POST' && r) return !ID_RE.test(r[1]) ? json(res, 400, { error: 'Bad job id' }) : { revise: reviseJob, answers: answerJob, theme: switchTheme }[r[2]](req, res, r[1]);
   const m = /^\/api\/jobs\/([^/]+)\/(events|main\.pdf|main\.tex|v\d{1,3}\.pdf)$/.exec(p);
   if (req.method === 'GET' && m) {
     if (!ID_RE.test(m[1])) return json(res, 400, { error: 'Bad job id' });
@@ -513,4 +591,4 @@ const server = http.createServer((req, res) => {
 });
 
 if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT}`));
-module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision, parseLength, parseQuestions, parseAnswers };
+module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision, parseLength, parseQuestions, parseAnswers, THEMES, themeError, themeTex, useThemeTex };

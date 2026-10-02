@@ -204,7 +204,7 @@ Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a
 
 **Job folder** `jobs/<id>/`:
 ```
-job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"custom","template"?:true,
+job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"metropolis"|"moloch"|"focus"|"trigon"|"madrid"|"custom","template"?:true,
                  "length":int (slides 5–25, default 10; report pages 2–10, default 4),
                  "status":"queued"|"running"|"waiting"|"done"|"failed","createdAt",
                  "sessionId"?, "asked"?:true, "askCost"?, "revisions"?}
@@ -214,7 +214,9 @@ input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub r
 data/*.csv      written by collect.js
 images/         images copied by collect.js as img1.png, img2.jpg, ...
 facts.json      written by collect.js
-main.tex/.pdf   written by Claude
+main.tex/.pdf   written by Claude; main.tex loads its theme only via \input{theme.tex}
+theme.tex       written by the server (at job creation and on a switch): one \usepackage line for the theme
+themes/         switch cache: <theme>.pdf per compiled theme + key (sha1 of main.tex and template/devreport-custom.sty)
 ```
 
 **`node collect.js <jobDir>`** (also `module.exports = { collect }`, `collect(jobDir)` returns facts). Reads `input/**`, writes `data/` + `images/` + `facts.json`. Exit 0 even if inputs are thin.
@@ -258,4 +260,6 @@ claude -p "<prompt from .claude/skills/devreport/prompt.txt with {{kind}} {{them
 claude --resume <sessionId> -p "<answered|skipped line>" ...   # after questions; session_id comes from the system/init event
 ```
 `{{length}}` is filled as e.g. `6 slides` or `4 pages`. `POST /api/jobs/:id/answers` takes `{"answers":{"q1":"..."}}` (ids from questions.json, ≤ 2000 chars each, at least one non-empty) or `{"skip":true}`; 409 unless status is `waiting`. SSE events: `step`, `questions` `{questions}`, `done`, `failed`.
-Theme files live in `.claude/skills/devreport/themes/devreport-<theme>.sty`; how they reach the job (copy vs path) is decided by Part 0/2 and written in SKILL.md.
+Theme files live in `.claude/skills/devreport/themes/devreport-<theme>.sty`, loaded by relative path from theme.tex. paper/midnight do article + beamer; the slides-only adapters load their Beamer theme and `devreport-core.sty` (the shared `dr*` interface: colours, `\drkpi`, `\drpie`, `\drsafecats`, `drbar`/`drhbar`, and the type scale `\drTitle \drLead \drH \drSub \drBody \drSmall \drCaption \drStat`). moloch and focus aren't in the tectonic bundle, so they are vendored in `themes/vendor/` with their licenses (CC BY-SA 4.0, GPL-3.0); metropolis, trigon and Madrid come from the bundle. `themes/previews/*.png` are page one of a sample deck/report per theme.
+
+`POST /api/jobs/:id/theme {theme}`: 409 unless the job is `done` and not being revised/switched; 400 if the theme is unknown, slides-only on a report, or `custom` without a template. Writes theme.tex, swaps in `themes/<theme>.pdf` or runs `tectonic main.tex` (60 s timeout), updates job.json; returns `{theme, pdf (cache-busted), ms, cached}`. On a failed compile it restores theme.tex and main.pdf and returns 422 with the first error line. An older main.tex with a hard-coded theme line is rewritten to `\input{theme.tex}` on its first switch.

@@ -25,7 +25,7 @@ upload / zip / GitHub link
 - **Length is a target.** Pick 5–25 slides or 2–10 pages. Claude aims within one either way, goes shorter rather than pad, and cuts the least important sections when there's too much.
 - **Locked-down agent.** Claude Code runs headless with only `Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill`: no general shell, and it can only write inside the job folder. Uploaded content is treated as data, never instructions.
 - **Safe intake.** Zips are size-checked before extracting (zip bombs), path-escaping entries are rejected, symlinks are deleted. GitHub URLs are validated and cloned without a shell, with a timeout.
-- **Themes.** Paper (serif, academic) and Midnight (dark, neon, terminal). Each is one `.sty` that works for both reports and slides, charts included.
+- **Themes, switchable after the build.** Paper (serif, academic) and Midnight (dark, neon, terminal) work for reports and slides; slides also get five popular Beamer themes: Metropolis, Moloch (its maintained fork, dark variant), Focus, Trigon and the built-in Madrid. Each theme is a small adapter `.sty` exposing the same `dr*` colours, chart styles, stat tiles and type sizes, and `main.tex` only says `\input{theme.tex}`. So once a deck exists, clicking another theme rewrites that one line and reruns `tectonic` (about 1.2 s, no Claude); each compiled theme is cached, so switching back is instant.
 - **Your own PowerPoint template (slides).** Upload a `.pptx` and `pptx.js` pulls out its colour palette, heading/body fonts, logo, title/body box positions and preview thumbnail into `template/template.json`. Claude writes a matching Beamer theme from that, compiles a test slide, compares it with the thumbnail and adjusts. Sample: [slides from a custom template](samples/slides-custom-template.pdf).
 
 ## Setup
@@ -63,6 +63,15 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 ## What I learned
 
 <!-- TODO(Gaurav): write this yourself, judges score your own understanding. -->
+
+## Third-party credits
+
+- [humanizer](.claude/skills/humanizer/) skill, MIT (see its LICENSE)
+- [Metropolis](https://github.com/matze/mtheme) Beamer theme by Matthias Vogelgesang, loaded from tectonic's TeX bundle (CC BY-SA 4.0)
+- [Moloch](https://github.com/jolars/moloch) Beamer theme by Johan Larsson, vendored in `themes/vendor/moloch/` (CC BY-SA 4.0, see its LICENSE)
+- [Focus](https://github.com/elauksap/focus-beamertheme) Beamer theme by Pasquale Claudio Africa, vendored in `themes/vendor/focus/` (GPL-3.0, see its LICENSE)
+- Trigon Beamer theme (CTAN, loaded from tectonic's bundle) and Beamer's built-in Madrid theme
+- [pgfplots](https://ctan.org/pkg/pgfplots), [pgf-pie](https://ctan.org/pkg/pgf-pie) and [tectonic](https://tectonic-typesetting.github.io)
 
 ## AI disclosure
 

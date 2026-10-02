@@ -88,29 +88,19 @@ main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;p
 .shape.slide{width:38px;height:24px}
 .shape::before{content:"";position:absolute;left:4px;right:4px;top:5px;height:2px;background:var(--accent);box-shadow:0 5px 0 var(--rule),0 9px 0 var(--rule)}
 .shape.slide::before{right:12px}
-.theme .face{flex-direction:column;align-items:stretch;padding:8px 8px 10px}
-.sw span{display:block}
-.sw{display:block;height:96px;border-radius:7px;padding:12px;position:relative;overflow:hidden;margin-bottom:9px}
-.sw.p{background:#f7f1e3;color:#2a2117;border:1px solid #e6dcc6}
-.sw.p .t{font:italic 26px/1 var(--serif)}
-.sw.p .r{height:2px;width:40%;background:#a3361c;margin:8px 0 7px}
-.sw.p .l{height:3px;background:#d8ccb2;margin-bottom:4px;width:85%}
-.sw.m{background:var(--night);color:#e6edf3}
-.sw.m .t{font:500 17px/1 var(--mono);color:var(--neon)}
-.sw.m .t::before{content:"> ";color:#4b5563}
-.sw.m .r{height:2px;width:40%;background:var(--neon);margin:10px 0 8px;box-shadow:0 0 10px var(--neon)}
-.sw.m .l{height:3px;background:#273041;margin-bottom:4px;width:85%}
-.sw .bars{display:flex!important;position:absolute;right:12px;bottom:12px;display:flex;gap:3px;align-items:flex-end}
-.sw .bars i{width:6px;border-radius:1px}
-.sw.p .bars i{background:#a3361c}
-.sw.m .bars i{background:var(--neon)}
-.seg.th{grid-template-columns:repeat(3,1fr)}
-.sw.u{background:var(--paper);border:1.5px dashed #c4b8a2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font:11px/1.2 var(--mono);color:var(--muted);text-align:center}
-.sw.u .ic{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
+.theme .face{flex-direction:column;align-items:stretch;gap:0;padding:6px 6px 8px}
+.thumb{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;margin-bottom:7px;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
+.thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.seg.th{grid-template-columns:repeat(4,1fr);gap:8px}
+#f[data-kind=report] .seg.th{grid-template-columns:repeat(3,1fr)}
+#f[data-kind=report] .theme[data-kinds=slides]:not(#tplcard){display:none}
+.sw.u{aspect-ratio:16/9;border-radius:6px;margin-bottom:7px;background:var(--paper);border:1.5px dashed #c4b8a2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px;font:10px/1.2 var(--mono);color:var(--muted);text-align:center;overflow:hidden}
+.sw.u .ic{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
 .sw.u .fn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sw.u.has{border-style:solid;border-color:var(--accent);background:#fff4ee;color:var(--accent-ink)}
-.theme .face b{padding:0 4px}
-.theme .face small{padding:0 4px}
+.theme .face b{padding:0 2px;font-size:13.5px;line-height:1.2}
+.theme .face small{padding:0 2px;font-size:11px;line-height:1.3}
+.thlede{margin:-4px 0 12px;font-size:12.5px;color:var(--muted)}
 
 /* length: slider + stepper */
 .len{margin-top:10px;border:1px solid var(--rule);background:var(--card);border-radius:12px;padding:12px 12px 12px 14px}
@@ -211,7 +201,28 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 
 /* done */
 .v-done{flex-direction:column}
-.v-done iframe{flex:1;border:0;width:100%;background:#525659}
+.pdfwrap{flex:1;min-height:0;position:relative;display:flex}
+.v-done iframe{flex:1;border:0;width:100%;background:#525659;transition:opacity .2s}
+.veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,19,15,.45);backdrop-filter:blur(2px);color:var(--paper);font:italic 22px/1.2 var(--serif);text-align:center;animation:fade .15s ease both}
+.veil[hidden]{display:none}
+.veil small{display:block;font:12px var(--mono);font-style:normal;opacity:.75;margin-top:6px}
+@keyframes fade{from{opacity:0}}
+/* theme strip: re-typeset the finished PDF in another theme, no Claude involved */
+.tstrip{flex:none;display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:thin;background:var(--card)}
+.tstrip .rlab{margin:0 4px 0 0;flex:none}
+.tchip{flex:none;width:72px;display:flex;flex-direction:column;gap:5px;border:1px solid var(--rule);background:#fff;border-radius:8px;padding:3px 3px 5px;cursor:pointer;font:500 10.5px/1 var(--mono);color:var(--ink2);text-align:center;position:relative;transition:.15s}
+.tchip:hover:not(:disabled){border-color:#b9ad97;transform:translateY(-1px)}
+.tchip .thumb{margin:0;border-radius:5px}
+.tchip .sw.u{margin:0;border-radius:5px;font-size:9px}
+.tchip[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink)}
+.tchip[aria-pressed=true]::after{content:"✓";position:absolute;top:6px;right:6px;width:14px;height:14px;border-radius:50%;background:var(--ink);color:var(--paper);font:9px/14px var(--sans);text-align:center;box-shadow:0 0 0 1.5px #fff}
+.tchip:disabled{cursor:wait}
+.tchip:disabled:not(.loading){opacity:.5}
+.tchip.loading .thumb{animation:blink 1s infinite}
+.tchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tmsg{flex:none;margin-left:2px;font:11px/1.3 var(--mono);color:var(--ok);white-space:nowrap}
+.tmsg.err{white-space:normal;width:24ch}
+.tmsg.err{color:var(--accent-ink)}
 .dbar{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-top:1px solid var(--rule)}
 .dbar .msg{font:italic 19px/1.2 var(--serif);margin-right:auto}
 .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 13px;font:500 13px var(--sans);text-decoration:none;cursor:pointer;transition:.15s}
@@ -279,11 +290,12 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   .pipeline{display:none}
   .seg{gap:8px}
   .face small{display:none}
-  .sw{height:78px}
   .feed li{grid-template-columns:40px 24px 1fr;gap:8px;padding:6px 12px}
   .go kbd{display:none}
   .rev{max-height:none}
   .v-done iframe{min-height:140px}
+  .seg.th{grid-template-columns:repeat(2,1fr)}
+  #f[data-kind=report] .seg.th{grid-template-columns:repeat(3,1fr)}
   .dbar{gap:6px;padding:10px 12px}
   .dbar .msg{flex-basis:100%}
   .dbar .btn{padding:7px 10px;font-size:12px}
@@ -314,7 +326,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
 <div class="wrap">
 <main>
-  <form id="f" novalidate>
+  <form id="f" novalidate data-kind="report">
     <section class="sec">
       <h2><small>01</small>Source</h2>
       <label class="drop" id="drop">
@@ -346,16 +358,11 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
     <section class="sec">
       <h2><small>03</small>Theme</h2>
-      <div class="seg th">
-        <label class="opt-card theme"><input type="radio" name="theme" value="paper" checked><span class="face">
-          <span class="sw p"><span class="t">Aa</span><span class="r"></span><span class="l"></span><span class="l" style="width:62%"></span><span class="bars"><i style="height:14px"></i><i style="height:24px"></i><i style="height:18px"></i><i style="height:30px"></i></span></span>
-          <b>Paper</b><small>Serif, cream, academic</small></span></label>
-        <label class="opt-card theme"><input type="radio" name="theme" value="midnight"><span class="face">
-          <span class="sw m"><span class="t">Aa</span><span class="r"></span><span class="l"></span><span class="l" style="width:62%"></span><span class="bars"><i style="height:12px"></i><i style="height:28px"></i><i style="height:20px"></i><i style="height:32px"></i></span></span>
-          <b>Midnight</b><small>Dark, neon, terminal</small></span></label>
-        <label class="opt-card theme" id="tplcard"><input type="radio" name="theme" value="custom"><span class="face">
+      <p class="thlede" id="thlede">Each card is page one of a real deck in that theme. You can switch themes after it's built.</p>
+      <div class="seg th" id="themes">
+        <label class="opt-card theme" id="tplcard" data-kinds="slides"><input type="radio" name="theme" value="custom"><span class="face">
           <span class="sw u" id="tplsw"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg></span><span class="fn" id="tplname">choose .pptx</span></span>
-          <b>Your template</b><small>.pptx colours, fonts, logo · slides</small></span></label>
+          <b>Your template</b><small>.pptx colours, fonts, logo</small></span></label>
         <input type="file" id="tpl" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
       </div>
     </section>
@@ -384,7 +391,8 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
         <div class="ffoot"><span>elapsed</span><span class="clock" id="clock">00:00</span><button type="button" class="btn back" id="back" hidden>Back to the PDF</button><button type="button" class="btn retry" id="retry">Edit and try again</button></div>
       </div>
       <div class="view v-done">
-        <iframe id="pdf" title="Generated PDF"></iframe>
+        <div class="tstrip" id="tstrip" role="group" aria-label="Theme"><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
+        <div class="pdfwrap"><iframe id="pdf" title="Generated PDF"></iframe><div class="veil" id="veil" hidden></div></div>
         <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
           <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
           <label class="rlab" for="revgen" id="revlab">Whole deck</label>
@@ -413,6 +421,18 @@ const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'),
 const ICON = { ask:'?', answer:'↳', revise:'↻', template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
 let tplFile = null, files = [], es = null, t0 = 0, tick = null, jobId = null, last = null;
 
+// themes: id, name, a few words, formats. Slides-only themes are Beamer themes on the shared dr* macros
+const THEMES = [
+  ['paper', 'Paper', 'Serif, cream, academic', 'report slides'],
+  ['midnight', 'Midnight', 'Dark, neon, terminal', 'report slides'],
+  ['metropolis', 'Metropolis', 'Flat, Fira, orange rule', 'slides'],
+  ['moloch', 'Moloch', 'Metropolis fork, dark teal', 'slides'],
+  ['focus', 'Focus', 'Bold navy title bars', 'slides'],
+  ['trigon', 'Trigon', 'Geometric triangles', 'slides'],
+  ['madrid', 'Madrid', 'Classic Beamer blue', 'slides'],
+].map(([id, name, note, kinds]) => ({ id, name, note, kinds }));
+const preview = (t, kind) => `/previews/${t.id}${kind === 'report' && t.kinds.includes('report') ? '-report' : ''}.png`;
+const themeName = (id) => THEMES.find((t) => t.id === id)?.name || 'Your template';
 const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
@@ -444,6 +464,18 @@ $('#repo').addEventListener('input', () => {
   $('#urlhint').classList.toggle('err', !!bad);
   $('#urlhint').textContent = bad ? 'That should look like owner/repo.' : 'Public repos only. Full history is cloned so commits can be charted.';
 });
+// theme cards, built from THEMES, in front of the "Your template" card
+$('#tplcard').insertAdjacentHTML('beforebegin', THEMES.map((t, i) => `<label class="opt-card theme" data-kinds="${t.kinds}"><input type="radio" name="theme" value="${t.id}"${i ? '' : ' checked'}><span class="face">
+  <span class="thumb"><img src="${preview(t, 'report')}" alt="" loading="lazy" data-t="${t.id}"></span><b>${t.name}</b><small>${t.note}</small></span></label>`).join(''));
+// a report only gets the themes that have an article layout; previews follow the format
+function setKind(kind) {
+  form.dataset.kind = kind;
+  $('#golabel').textContent = kind === 'slides' ? 'Generate slides' : 'Generate report';
+  form.querySelectorAll('.thumb img[data-t]').forEach((img) => { img.src = preview(THEMES.find((t) => t.id === img.dataset.t), kind); });
+  const sel = form.querySelector('[name=theme]:checked');
+  if (kind === 'report' && sel.value !== 'custom' && !THEMES.find((t) => t.id === sel.value).kinds.includes('report')) form.querySelector('[name=theme][value=paper]').checked = true;
+  $('#thlede').textContent = kind === 'slides' ? 'Each card is page one of a real deck in that theme. You can switch themes after it\'s built.' : 'Reports come in Paper or Midnight; Slides add five Beamer themes. You can switch after it\'s built.';
+}
 // "Your template" card: picking it opens the file picker; a template means slides
 const tplIn = $('#tpl'), checked = (n) => form.querySelector(`[name=${n}]:checked`).value;
 let lastTheme = 'paper';
@@ -459,7 +491,7 @@ tplIn.onchange = () => {
   if (!/\.pptx$/i.test(f.name)) { $('#formerr').textContent = 'The template has to be a .pptx file.'; return tplBack(); }
   tplFile = f; $('#tplname').textContent = f.name; $('#tplname').title = f.name; $('#tplsw').classList.add('has'); $('#formerr').textContent = '';
   tplRadio.checked = true;
-  form.querySelector('[name=kind][value=slides]').checked = true; $('#golabel').textContent = 'Generate slides'; setLen();
+  form.querySelector('[name=kind][value=slides]').checked = true; setKind('slides'); setLen();
 };
 // length: one slider + stepper whose range and unit follow the format; each format keeps its own value
 const LEN = { report: { min: 2, max: 10, v: 4, unit: 'pages' }, slides: { min: 5, max: 25, v: 10, unit: 'slides' } }, lenr = $('#lenr');
@@ -475,8 +507,8 @@ function setLen(v) {
 }
 lenr.addEventListener('input', () => setLen(lenr.value));
 document.querySelectorAll('.step button').forEach((b) => { b.onclick = () => setLen(LEN[checked('kind')].v + +b.dataset.d); });
-form.addEventListener('change', (e) => { if (e.target.name === 'kind') { $('#golabel').textContent = e.target.value === 'slides' ? 'Generate slides' : 'Generate report'; setLen(); } });
-setLen();
+form.addEventListener('change', (e) => { if (e.target.name === 'kind') { setKind(e.target.value); setLen(); } });
+setKind(checked('kind')); setLen();
 document.addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
   if (e.target.closest?.('#rev')) { e.preventDefault(); rev.requestSubmit(); } else if (e.target.closest?.('#ask')) { e.preventDefault(); ask.requestSubmit(); } else if (!$('#go').disabled) form.requestSubmit();
@@ -505,7 +537,7 @@ form.addEventListener('submit', (e) => {
   if (url) fd.append('repoUrl', url);
   for (const k of ['kind', 'theme']) fd.append(k, checked(k));
   if (checked('theme') === 'custom') {
-    if (!tplFile) { $('#formerr').textContent = 'Choose a .pptx template, or pick Paper or Midnight.'; return; }
+    if (!tplFile) { $('#formerr').textContent = 'Choose a .pptx template, or pick one of the themes.'; return; }
     if (checked('kind') !== 'slides') { $('#formerr').textContent = 'PowerPoint templates are for slides. Switch the format to Slides.'; return; }
     fd.append('template', tplFile, tplFile.name);
   }
@@ -574,9 +606,46 @@ function showDone(d) {
   $('#dltex').href = d.tex + '?download=1';
   $('#ver').textContent = 'v' + v;
   $('#revlab').textContent = 'Whole ' + what;
+  renderStrip(d);
   $('#hist').innerHTML = v > 1 ? 'versions ' + Array.from({ length: v - 1 }, (_, i) => `<a href="/api/jobs/${jobId}/v${i + 1}.pdf" target="_blank" rel="noopener" title="Open v${i + 1} in a new tab">v${i + 1}</a>`).join('') + `<b>v${v}</b>` : '';
   setState('done', 'Ready');
 }
+// theme strip: one chip per theme this job can use; a click re-typesets the same main.tex (no Claude)
+let switchingTheme = false;
+function renderStrip(d) {
+  const list = THEMES.filter((t) => t.kinds.includes(d.kind));
+  if (d.template) list.push({ id: 'custom', name: 'Template' });
+  $('#tchips').innerHTML = list.map((t) => `<button type="button" class="tchip" data-t="${t.id}" aria-pressed="${t.id === d.theme}" title="${t.id === 'custom' ? 'Your PowerPoint template' : esc(t.name + ': ' + t.note)}">${t.id === 'custom'
+    ? '<span class="sw u has thumb"><span class="fn">.pptx</span></span>' : `<span class="thumb"><img src="${preview(t, d.kind)}" alt=""></span>`}${esc(t.name)}</button>`).join('');
+  $('#tmsg').textContent = ''; $('#tmsg').classList.remove('err');
+}
+$('#tchips').addEventListener('click', async (e) => {
+  const chip = e.target.closest('.tchip');
+  if (!chip || switchingTheme || chip.getAttribute('aria-pressed') === 'true') return;
+  const theme = chip.dataset.t, chips = [...document.querySelectorAll('.tchip')];
+  switchingTheme = true; chips.forEach((c) => { c.disabled = true; }); chip.classList.add('loading');
+  $('#tmsg').textContent = ''; $('#tmsg').classList.remove('err');
+  const veil = $('#veil');
+  const slow = setTimeout(() => { veil.innerHTML = `Typesetting in ${esc(themeName(theme))}<small>tectonic, same LaTeX, new theme</small>`; veil.hidden = false; }, 250); // a cached theme comes back before the veil shows
+  let r, j = {};
+  try { r = await fetch(`/api/jobs/${jobId}/theme`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ theme }) }); j = await r.json().catch(() => ({})); }
+  catch { r = { ok: false }; j.error = 'Could not reach the server.'; }
+  clearTimeout(slow);
+  if (r.ok) {
+    const iframe = $('#pdf');
+    iframe.addEventListener('load', () => { veil.hidden = true; }, { once: true });
+    setTimeout(() => { veil.hidden = true; }, 4000);
+    iframe.src = `${j.pdf}#navpanes=0&view=FitH`;
+    last = { ...last, theme };
+    chips.forEach((c) => c.setAttribute('aria-pressed', c === chip));
+    $('#tmsg').textContent = j.cached ? 'cached' : (j.ms / 1000).toFixed(1) + ' s';
+    $('#tmsg').title = `${themeName(theme)}: ${j.cached ? 'already compiled, swapped in' : 'recompiled with tectonic'}`;
+  } else {
+    veil.hidden = true;
+    $('#tmsg').textContent = j.error || `Switch failed (${r.status})`; $('#tmsg').classList.add('err');
+  }
+  chip.classList.remove('loading'); chips.forEach((c) => { c.disabled = false; }); switchingTheme = false;
+});
 // revision drawer
 const rev = $('#rev'), pgs = $('#pgs');
 const toggleRev = (open = rev.hidden) => { rev.hidden = !open; $('#revopen').setAttribute('aria-expanded', open); if (open) $('#revgen').focus(); };

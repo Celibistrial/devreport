@@ -237,3 +237,21 @@ test('length, questions.json and answers are validated', () => {
   for (const [body, re] of [['nope', /JSON/], ['{"answers":{"q9":"x"}}', /Unknown/], ['{"answers":{"q1":5}}', /string/],
     [JSON.stringify({ answers: { q1: 'x'.repeat(2001) } }), /over/], ['{"answers":{"q1":"  "}}', /at least one/], ['{}', /skip/]]) assert.throws(() => parseAnswers(body, qs), re);
 });
+
+test('themes are validated per format and land in theme.tex', () => {
+  const { themeError, themeTex, useThemeTex } = require('./server');
+  assert.strictEqual(themeError('paper', { kind: 'report' }), null);
+  assert.strictEqual(themeError('metropolis', { kind: 'slides' }), null);
+  assert.strictEqual(themeError('custom', { kind: 'slides', template: true }), null);
+  assert.match(themeError('metropolis', { kind: 'report' }), /slides theme/);
+  assert.match(themeError('custom', { kind: 'slides' }), /no PowerPoint template/);
+  for (const t of ['nope', '../paper', 'constructor', 5]) assert.match(themeError(t, { kind: 'slides' }), /Unknown/);
+  assert.strictEqual(themeTex('focus'), '\\usepackage{../../.claude/skills/devreport/themes/devreport-focus}\n');
+  assert.strictEqual(themeTex('custom'), '\\usepackage{template/devreport-custom}\n');
+  for (const t of ['paper', 'midnight', 'metropolis', 'moloch', 'focus', 'trigon', 'madrid'])
+    assert.ok(fs.existsSync(path.join(__dirname, '.claude/skills/devreport/themes', `devreport-${t}.sty`)), t);
+  // older main.tex named its theme; the switch rewrites that line once
+  assert.strictEqual(useThemeTex('\\documentclass{beamer}\n\\usepackage{../../.claude/skills/devreport/themes/devreport-paper}\n\\begin{document}'), '\\documentclass{beamer}\n\\input{theme.tex}\n\\begin{document}');
+  assert.strictEqual(useThemeTex('x\n\\input{theme.tex}\n'), 'x\n\\input{theme.tex}\n');
+  assert.strictEqual(useThemeTex('\\documentclass{beamer}\n\\usetheme{Madrid}'), false);
+});
