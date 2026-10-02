@@ -27,7 +27,17 @@
 \definecolor{drAccentE}{HTML}{C6C0B4}
 % trigon draws its triangles only through its own \titleframe; main.tex uses a plain \titlepage frame,
 % so the title frame (frame 1) gets the big-triangle title background and every other frame the small corner triangle
-\setbeamertemplate{title page}[titlebigimage]
+\renewcommand{\drChartH}{0.72\textheight}% taller frame title than core assumes
+% trigon's titlebigimage, started 40pt higher: its fixed 135pt drop pushed the date off the slide
+\setbeamertemplate{title page}{%
+  \vskip95pt
+  \begin{flushright}
+    \begin{minipage}[t]{0.5\textwidth}\centering\usebeamerfont{title}\usebeamercolor[fg]{title}\inserttitle\par\end{minipage}
+    \ifx\insertsubtitle\@empty\else\vskip15pt
+    \begin{minipage}[t]{0.5\textwidth}\centering\usebeamerfont{subtitle}\insertsubtitle\par\end{minipage}\fi
+    \vskip13pt
+    \begin{minipage}[t]{0.5\textwidth}\centering\usebeamerfont{author}\insertauthor\vskip5pt\usebeamerfont{date}\insertdate\end{minipage}
+  \end{flushright}\vfill}
 \setbeamertemplate{background}{%
   \begin{tikzpicture}
     \useasboundingbox (0,0) rectangle(\the\paperwidth,\the\paperheight);

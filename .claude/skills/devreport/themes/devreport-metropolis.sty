@@ -5,7 +5,6 @@
 \usetheme[progressbar=frametitle,numbering=fraction,sectionpage=none]{metropolis}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
 % type scale (the rest keeps devreport-core's defaults)
-\renewcommand{\drTitle}{\Large}
 \renewcommand{\drH}{\large}
 
 % metropolis looks up Fira by system name; load it from the bundle by file so it never falls back
@@ -26,4 +25,18 @@
 \definecolor{drAccentC}{HTML}{14B03D}
 \definecolor{drAccentD}{HTML}{604C38}
 \definecolor{drAccentE}{HTML}{8AA6AC}
+% a fuller title page than metropolis's: big title, accent rule, subtitle, author/date when given, an accent bar down the left edge
+\renewcommand{\drTitle}{\huge}
+\renewcommand{\drLead}{\Large}
+\setbeamertemplate{title page}{%
+  \begin{tikzpicture}[remember picture,overlay]\fill[drAccent](current page.north west) rectangle ([xshift=0.6em]current page.south west);\end{tikzpicture}%
+  \vfill
+  {\usebeamerfont{title}\usebeamercolor[fg]{title}\bfseries\inserttitle\par}\vskip0.7em
+  {\color{drAccent}\rule{0.35\linewidth}{2pt}\par}\vskip0.7em
+  {\usebeamerfont{subtitle}\color{drMuted}\insertsubtitle\par}\vskip1.4em
+  {\drBody\color{drInk}\insertauthor\par}\vskip0.2em
+  {\drSmall\color{drMuted}\insertdate\par}
+  }% beamer adds the bottom \vfill
+% bigger accent bullets: Fira Light's dot is too faint
+\setbeamertemplate{itemize item}{\color{drAccent}\raisebox{0.1ex}{$\bullet$}}
 \endinput

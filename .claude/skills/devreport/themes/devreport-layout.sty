@@ -1,0 +1,74 @@
+% devreport-layout: frame layout macros shared by every slide theme. Beamer only.
+% Loaded by devreport-core (metropolis, moloch, focus, trigon, madrid) and by the beamer branch of
+% paper and midnight (so custom templates copied from them get it too). Needs the dr* colours and type names.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-layout}[2026/10/02 devreport layout macros]
+\usetikzlibrary{arrows.meta,positioning}
+
+% ---- frame defaults: top-aligned, tighter margins, airier lists ----
+\makeatletter\beamer@centeredfalse\makeatother
+\setbeamersize{text margin left=1.4em,text margin right=1.4em}
+\setbeamertemplate{itemize/enumerate body begin}{\setlength{\itemsep}{0.6em}}
+
+% ---- names an adapter may \renewcommand before \begin{document} ----
+\providecommand{\drHero}{\fontsize{44}{48}\selectfont}%   the number in \drBigNumber
+\providecommand{\drKpiLabel}[1]{{\sffamily\drCaption\color{drMuted}\MakeUppercase{#1}}}
+\providecommand{\drNumFont}{\sffamily}
+\newcommand{\drChartH}{0.76\textheight}%                   default chart and image height on a slide
+
+% charts fill the frame width; drhbar counts its labels inside that width, so long labels shrink the bars instead of overflowing
+\pgfplotsset{every axis/.append style={width=\linewidth, height=\drChartH},
+  drhbar/.append style={scale only axis=false, width=\linewidth-2.4em}}
+
+\newcounter{drI}
+\tikzset{drbox/.style={draw=drAccentB, line width=.6pt, fill=drPanel, text=drInk, rounded corners=2pt,
+    align=center, font=\drBody, inner sep=6pt, minimum height=3.6em, text width=#1},
+  drarrow/.style={-{Stealth[length=5pt]}, drAccent, line width=1pt}}
+
+% \drTwoCol{left}{right}: two top-aligned columns
+\newcommand{\drTwoCol}[2]{\begin{columns}[T,onlytextwidth]
+  \begin{column}{0.48\textwidth}#1\end{column}\hfill
+  \begin{column}{0.48\textwidth}#2\end{column}\end{columns}}
+% \drImageRight{images/img1.png}{left content}
+\newcommand{\drImageRight}[2]{\drTwoCol{#2}{\centering\includegraphics[width=\linewidth,height=\drChartH,keepaspectratio]{#1}}}
+
+% \drBigNumber{0.831}{held-out test accuracy}{one sentence of context, or empty}
+\newcommand{\drBigNumber}[3]{\par\vfill{\centering
+  {\drNumFont\drHero\color{drAccent}#1\par}\vskip6pt
+  \drKpiLabel{#2}\par
+  \if\relax\detokenize{#3}\relax\else\vskip12pt{\drBody\color{drInk}#3\par}\fi}}% beamer's own \vfill below centres it
+
+% \drCallout{text}: a panel with an accent bar down its left edge
+\newcommand{\drCallout}[1]{\par\noindent\begin{tikzpicture}
+  \pgfmathsetlengthmacro\drCW{\linewidth-23pt}%
+  \node[fill=drPanel, text=drInk, font=\drBody, inner sep=10pt, text width=\drCW, align=left] (c) {#1};
+  \fill[drAccent] (c.north west) rectangle ([xshift=3pt]c.south west);\end{tikzpicture}\par\vskip0.6em}
+
+% \drFlow{Data, Augment, {ResNet, 3 stages}, SGD}: boxes and arrows across the line (2-5 boxes; brace a label with a comma)
+\newcommand{\drFlow}[1]{\par\noindent\setcounter{drI}{0}\foreach \x in {#1}{\stepcounter{drI}}%
+  \pgfmathsetlengthmacro\drW{(\linewidth-(\value{drI}-1)*0.9cm)/\value{drI}-14pt}%
+  \begin{tikzpicture}[node distance=0.9cm]\setcounter{drI}{0}
+  \foreach \x in {#1}{\stepcounter{drI}\pgfmathtruncatemacro\drP{\value{drI}-1}
+    \ifnum\value{drI}=1 \node[drbox=\drW] (n1) {\x};
+    \else\node[drbox=\drW, right=of n\drP] (n\thedrI) {\x};\draw[drarrow] (n\drP) -- (n\thedrI);\fi}
+  \end{tikzpicture}\par\vskip0.8em}
+
+% \drTimeline{2026-03-01/Started the repo, 2026-04-10/First demo, ...}: dots on a line, date above, event below
+% (from repo.milestones; an event with a comma goes in braces, no / inside an event)
+\newcommand{\drTimeline}[1]{\par\noindent\setcounter{drI}{0}\foreach \drD/\drM in {#1}{\stepcounter{drI}}%
+  \pgfmathsetlengthmacro\drCell{\linewidth/\value{drI}}%
+  \pgfmathsetlengthmacro\drTW{min(\drCell-3mm,4.2cm)}%
+  \begin{tikzpicture}\path (0,0) -- (\linewidth,0);
+  \draw[drGrid, line width=2pt] (0.5*\drCell,0) -- (\linewidth-0.5*\drCell,0);\setcounter{drI}{0}
+  \foreach \drD/\drM in {#1}{\stepcounter{drI}\pgfmathsetlengthmacro\drX{(\value{drI}-0.5)*\drCell}
+    \fill[drAccent] (\drX,0) circle (3.5pt);
+    \node[above=6pt, font=\drSmall, text=drMuted] at (\drX,0) {\drD};
+    \node[below=6pt, font=\drBody, text=drInk, text width=\drTW, align=center, anchor=north] at (\drX,0) {\drM};}
+  \end{tikzpicture}\par}
+
+% \drSection{title}{subtitle}: a divider frame (counts as a frame)
+\newcommand{\drSection}[2]{\begin{frame}[plain,c]\relax
+  {\drTitle\color{drAccentB}#1\par}\vskip8pt
+  {\color{drAccent}\rule{3cm}{2pt}\par}\vskip8pt
+  {\drLead\color{drMuted}#2\par}\end{frame}}
+\endinput

@@ -66,6 +66,7 @@
   },
   every axis plot/.append style={line width=1.2pt, mark size=1.6pt},
   drbar/.style={ybar, cycle list name=devreportbar, bar width=12pt, every axis plot/.append style={fill opacity=0.9, draw=none}},
+  drstrip/.style={height=3cm, width=\linewidth, ytick=\empty, ymajorgrids=false},
   drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, enlarge x limits={upper,value=0.1}, yticklabel style={font=\ttfamily\drCaption}, every axis plot/.append style={draw=none}},
 }
 % \drsafecats: make _ # & $ ^ % ~ printable before reading CSV labels (use inside a group)
@@ -102,4 +103,7 @@
 \setbeamerfont{caption}{size=\drCaption}
 \setbeamerfont{footline}{size=\drCaption}
 \setbeamerfont{page number in head/foot}{size=\drCaption}
+\setbeamercolor{alerted text}{fg=drAccent}
+\setbeamercolor{item}{fg=drAccent}% bullets and numbers in the accent colour
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-layout}
 \endinput
