@@ -35,11 +35,11 @@ Browser                       server.js (Node stdlib http)            Claude Cod
 ───────                       ────────────────────────────            ───────────
 drop files / .zip   ──POST──▶ save to jobs/<id>/input/ (unzip .zip)
 or GitHub URL                 or git clone → jobs/<id>/input/repo/
-pick Report | Slides          run collect.js → data/*.csv
-answer 3 fixed      ──POST──▶ save answers.md to input/
-optional questions
+pick Report | Slides + length run collect.js → data/*.csv
 pick theme / upload .pptx     run pptx.js → template/ (if pptx)
                               spawn claude -p in jobs/<id>/ ────────▶ read inputs
+questions (rarely)  ◀──SSE─── questions.json, status waiting ◀─────── can't source essentials? ask, stop
+answer or skip      ──POST──▶ answers.md, claude --resume <session> ▶ carry on
 live progress feed  ◀──SSE─── forward stream-json steps     ◀──────── write main.tex
                                                                       tectonic compile
                                                                       fix errors, recompile
@@ -101,12 +101,12 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 - **Untrusted `.git/`:** a zip may contain a repo. Only ever run `git log` on it, with `GIT_CONFIG_NOSYSTEM=1`; never `git status` or anything that runs hooks.
 - **GitHub URL:** strip a trailing `.git`, `/tree/<branch>...` and `/`, then it must match `^https://github\.com/[\w.-]+/[\w.-]+$`. Run `git clone --single-branch <url> input/repo` via `execFile` (no shell) with `GIT_TERMINAL_PROMPT=0` so a private repo fails fast instead of hanging. Full history is needed for `git log --numstat`. Cap with a timeout (~60 s).
 
-**Questions form** (fixed, not a Claude call, so it's deterministic for the demo and adds no wait):
+**Ask only when needed** (inside the one main Claude run, no extra call):
 
-1. After upload, the UI always shows 4 optional questions: *What problem does it solve and who is it for?*, *What result are you proudest of, and how did you measure it?*, *What did you learn / what was hard?*, *What's next?*
-2. Answers are saved as `input/answers.md` and treated as notes. Blank answers are fine.
-3. If a slot is still empty, Claude leaves it out; it never makes up facts.
-4. Upgrade later (only if time): a `claude -p --json-schema` gap check that asks only for what's missing, defaulting to "enough" on timeout.
+1. Claude reads everything first (facts, notes, code per SKILL.md). If it can't source what the project is/does, or the problem and who it's for, it writes `questions.json` (max 3 questions; optionally one about results when there is zero evidence) and stops without writing main.tex. Most repos with a README get none. Lessons and what's next are never asked: those sections are left out.
+2. The server sees `questions.json` and no `main.pdf`: it emits an SSE `questions` event, sets status `waiting` and frees the busy guard. The UI shows the questions inline in the feed with "Answer & continue" and "Skip, use what you have". A reload (`#job=<id>`) replays the event, from disk too after a server restart.
+3. `POST /api/jobs/:id/answers` writes `input/answers.md`, deletes `questions.json` and re-runs `claude --resume <sessionId>` with a short "answered/skipped, do not ask again" prompt. If the session is gone, it falls back to a fresh run with the normal prompt plus that line.
+4. Questions are asked at most once per job: the second-run prompt forbids asking, and the server ignores a `questions.json` from it.
 
 **Content checklist (what a full deck/report needs):**
 
@@ -119,7 +119,7 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 | Challenges + what you learned | commit messages ("fix"), error logs, notes |
 | What's next | notes, TODOs |
 
-Problem/audience, lessons learned and what's next are the slots most often missing, which is why the form asks exactly those.
+Problem/audience is the slot most often missing, which is why it's one of the two things Claude may ask about. Lessons learned and what's next are left out rather than asked for.
 
 ## Themes
 
@@ -195,6 +195,7 @@ Ship 2 presets (Paper, Midnight). Minimal and Campus only if there's time left. 
 - [ ] README "What I learned" ← owner writes this
 - [ ] Push repo public (check `gh auth status` → Celibistrial first)
 - [x] Part 7: PPT import: `pptx.js` + test, template card in the UI, `template.md` in the skill, sample `samples/slides-custom-template.pdf`
+- [x] Length option (slides/pages target) and ask-only-when-needed questions (replaced the fixed form), tested through the UI
 - [ ] Demo video + Devpost form
 
 Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a top-level folder unpack to `input/x/x/` (cosmetic).
@@ -203,9 +204,13 @@ Known small issues: error grouping turns `sqlite3` into `sqlite<n>`; zips with a
 
 **Job folder** `jobs/<id>/`:
 ```
-job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"custom","template"?:true,"status","createdAt"}
+job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"custom","template"?:true,
+                 "length":int (slides 5–25, default 10; report pages 2–10, default 4),
+                 "status":"queued"|"running"|"waiting"|"done"|"failed","createdAt",
+                 "sessionId"?, "asked"?:true, "askCost"?, "revisions"?}
+questions.json  written by Claude only when it must ask: {"questions":[{"id":"q1","question","why"}]} (≤ 3), deleted once answered
 template/       pptx.js output when a .pptx was uploaded (slides only): template.json, media/, thumbnail.jpeg
-input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md
+input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md ("## <question>\n\n<answer>" sections, written by the answers endpoint)
 data/*.csv      written by collect.js
 images/         images copied by collect.js as img1.png, img2.jpg, ...
 facts.json      written by collect.js
@@ -248,7 +253,9 @@ Only emit a chart when its CSV has ≥ 2 data rows. `charts` holds only `commits
 
 **Claude call** (server, cwd = `jobs/<id>/`):
 ```
-claude -p "<prompt from .claude/skills/devreport/prompt.txt with {{kind}} {{theme}} filled>" \
+claude -p "<prompt from .claude/skills/devreport/prompt.txt with {{kind}} {{theme}} {{length}} filled>" \
   --output-format stream-json --verbose --allowedTools "<from prompt.txt notes>"
+claude --resume <sessionId> -p "<answered|skipped line>" ...   # after questions; session_id comes from the system/init event
 ```
+`{{length}}` is filled as e.g. `6 slides` or `4 pages`. `POST /api/jobs/:id/answers` takes `{"answers":{"q1":"..."}}` (ids from questions.json, ≤ 2000 chars each, at least one non-empty) or `{"skip":true}`; 409 unless status is `waiting`. SSE events: `step`, `questions` `{questions}`, `done`, `failed`.
 Theme files live in `.claude/skills/devreport/themes/devreport-<theme>.sty`; how they reach the job (copy vs path) is decided by Part 0/2 and written in SKILL.md.
