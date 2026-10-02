@@ -52,7 +52,7 @@ Write for a judge who has 3 minutes. Lead with the problem, what was built and e
 
 Every claim must trace to the README, notes, answers, logs, a user table, facts.json or (for what it does and how) the code you read. Numbers in prose come straight from facts.json, a CSV row or the user's own words; never compute, round or estimate them.
 
-**Length.** `job.json` `length` (also in the prompt) is the target: hit it within one page or slide. Never pad with filler to reach it: if the sources run out, go shorter and say so in your final message. If there is more material than fits, merge sections or cut the least important ones (the appendix, timeline and key decisions go first). For slides, count the frames (title included). For a report, Read main.pdf once after compiling to check the page count, and adjust if you are off by more than one.
+**Length.** `job.json` `length` (also in the prompt) is the target: hit it exactly. Never pad with filler to reach it: if the sources run out, go shorter and say so in your final message. If there is more material than fits, merge sections or cut the least important ones (the appendix, timeline and key decisions go first). For slides, count the frames (title included). For a report, Read main.pdf once after compiling to check the page count, and adjust until it matches. A report's last page may be partly empty; that still counts as a page.
 
 **Report**:
 
