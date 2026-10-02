@@ -417,10 +417,12 @@ form.addEventListener('submit', (e) => {
   xhr.send(fd);
 });
 
-function listen(id) {
+function listen(id, shown = 0, retries = 0) {
   es?.close();
+  history.replaceState(null, '', '#job=' + id); // reload reattaches to this job
   es = new EventSource(`/api/jobs/${id}/events`);
-  es.addEventListener('step', (e) => { const d = JSON.parse(e.data); addStep(d.icon, d.text, d.t); });
+  let n = 0; // the server replays every event on connect; skip the ones already on screen
+  es.addEventListener('step', (e) => { if (++n <= shown) return; shown++; retries = 0; const d = JSON.parse(e.data); t0 ||= d.t; addStep(d.icon, d.text, d.t); });
   es.addEventListener('done', (e) => {
     const d = JSON.parse(e.data); es.close();
     addStep('done', 'PDF ready', d.t);
@@ -433,15 +435,25 @@ function listen(id) {
     }, 600);
   });
   es.addEventListener('failed', (e) => { es.close(); fail(JSON.parse(e.data).error); });
-  es.onerror = () => { if (es.readyState === EventSource.CLOSED) fail('Lost connection to the server.'); };
+  es.onerror = () => {
+    if (es.readyState !== EventSource.CLOSED) return; // browser is already retrying
+    if (retries < 5) setTimeout(() => listen(id, shown, retries + 1), 1000 * (retries + 1));
+    else fail('Lost connection to the server.');
+  };
 }
 function fail(msg) {
   addStep('failed', msg);
   setState('failed', 'Failed');
 }
-const reset = () => { es?.close(); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; $('#pdf').removeAttribute('src'); form.scrollIntoView({ behavior: 'smooth' }); };
+const reset = () => { es?.close(); history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; $('#pdf').removeAttribute('src'); form.scrollIntoView({ behavior: 'smooth' }); };
 $('#retry').onclick = reset;
 $('#again').onclick = reset;
+// reattach after a reload: #job=<id>
+const resume = location.hash.match(/^#job=([a-f0-9]{8})$/);
+if (resume) {
+  feed.innerHTML = ''; t0 = 0; tick = setInterval(() => { if (t0) $('#clock').textContent = mmss(Date.now() - t0); }, 500);
+  $('#jobid').textContent = '#' + resume[1]; setState('running', 'Working'); listen(resume[1]);
+}
 </script>
 </body>
 </html>

@@ -307,7 +307,9 @@ function sse(req, res, id) {
   for (const ev of job.events) send(res, ev);
   if (job.finished) return res.end();
   job.clients.add(res);
-  req.on('close', () => job.clients.delete(res));
+  // heartbeat: some browsers/proxies drop an SSE stream that's silent while Claude thinks
+  const ping = setInterval(() => res.write(': ping\n\n'), 15000);
+  req.on('close', () => { clearInterval(ping); job.clients.delete(res); });
 }
 
 function serveFile(res, file, type) {
