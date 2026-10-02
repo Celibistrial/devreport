@@ -7,9 +7,9 @@
 % nofirafonts: its FiraSans/firamath packages are pdfLaTeX-first; fontspec loads Fira below instead
 \usetheme[numbering=progressbar,nofirafonts]{focus}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
-% type scale (the rest keeps devreport-core's defaults)
+% type scale: devreport-core's, with this theme's title-page sizes
+\renewcommand{\drBodyH}{0.72\paperheight}
 \renewcommand{\drTitle}{\huge}
-\renewcommand{\drH}{\Large}
 \renewcommand{\drLead}{\small}% focus gives the subtitle one short box, so long subtitles stay small
 
 \setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Book,BoldFont=*-SemiBold,ItalicFont=*-BookItalic,BoldItalicFont=*-SemiBoldItalic]

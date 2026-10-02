@@ -4,9 +4,9 @@
 
 \usetheme{Madrid}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
-% type scale (the rest keeps devreport-core's defaults)
+% type scale: devreport-core's, with this theme's title-page sizes
+\renewcommand{\drBodyH}{0.73\paperheight}
 \renewcommand{\drTitle}{\Large}
-\renewcommand{\drH}{\large}
 % Latin Modern stays, so it reads like classic Beamer; only the number face is set
 \newfontfamily\drNumFam{texgyreheros}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,Numbers=Lining]
 \renewcommand{\drNumFont}{\drNumFam}

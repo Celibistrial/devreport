@@ -5,66 +5,87 @@
 \ProvidesPackage{devreport-layout}[2026/10/02 devreport layout macros]
 \usetikzlibrary{arrows.meta,positioning}
 
-% ---- frame defaults: top-aligned, tighter margins, airier lists ----
-\makeatletter\beamer@centeredfalse\makeatother
+% ---- frame defaults: top-aligned, tighter margins, airier lists, body-size plain text ----
+% A top-aligned frame ends with "plus 1fil" instead of beamer's "plus 1fill", so a \vfill between blocks in main.tex
+% (and the one \drFlow, \drTimeline and \drTwoCol end with) takes all the spare height and spreads the blocks down the frame.
+% A frame with one block still sits at the top.
+\makeatletter\beamer@centeredfalse
+\define@key{beamerframe}{t}[true]{\beamer@frametopskip=.1cm plus .5\paperheight\relax
+  \beamer@framebottomskip=0pt plus 1fil\relax
+  \beamer@frametopskipautobreak=\beamer@frametopskip\relax\beamer@framebottomskipautobreak=\beamer@framebottomskip\relax}
+\makeatother
 \setbeamersize{text margin left=1.4em,text margin right=1.4em}
-\setbeamertemplate{itemize/enumerate body begin}{\setlength{\itemsep}{0.6em}}
+\renewcommand{\normalsize}{\drBody}% plain paragraphs and tables in a frame get the body size too
+\setbeamertemplate{itemize/enumerate body begin}{\setlength{\itemsep}{0.4em}}
+\setbeamertemplate{itemize/enumerate subbody begin}{\setlength{\itemsep}{0.3em}}
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}% tables: narrower columns, taller rows
 
 % ---- names an adapter may \renewcommand before \begin{document} ----
-\providecommand{\drHero}{\fontsize{44}{48}\selectfont}%   the number in \drBigNumber
-\providecommand{\drKpiLabel}[1]{{\sffamily\drCaption\color{drMuted}\MakeUppercase{#1}}}
+\providecommand{\drHero}{\fontsize{84}{84}\selectfont}%   the number in \drBigNumber
+\providecommand{\drKpiLabel}[1]{{\sffamily\color{drMuted}\MakeUppercase{#1}}}% at the size around it
 \providecommand{\drNumFont}{\sffamily}
-\newcommand{\drChartH}{0.76\textheight}%                   default chart and image height on a slide
+\newcommand{\drBodyH}{0.69\paperheight}%  the frame body under a one-line title (scripts/fill.py measures it); adapters set theirs
+\newcommand{\drChartH}{\drBodyH-20pt}%      a chart or image on a slide: the body less a caption line (wrap in \dimexpr outside pgf)
 
 % charts fill the frame width; drhbar counts its labels inside that width, so long labels shrink the bars instead of overflowing
-\pgfplotsset{every axis/.append style={width=\linewidth, height=\drChartH},
-  drhbar/.append style={scale only axis=false, width=\linewidth-2.4em}}
+\pgfplotsset{every axis/.append style={width=\linewidth-6pt, height=\drChartH},
+  drbar/.append style={bar width=16pt},
+  drhbar/.append style={scale only axis=false, width=\linewidth-3.6em, height=\drChartH+20pt, bar width=0.62},% pgfplots reserves ~45pt for x labels; an hbar needs less. Bar width in axis units
+  every axis plot/.append style={line width=1.6pt, mark size=2.2pt}}
 
 \newcounter{drI}
-\tikzset{drbox/.style={draw=drAccentB, line width=.6pt, fill=drPanel, text=drInk, rounded corners=2pt,
-    align=center, font=\drBody, inner sep=6pt, minimum height=3.6em, text width=#1},
-  drarrow/.style={-{Stealth[length=5pt]}, drAccent, line width=1pt}}
+\newcommand{\drBoxH}{4.2em}% flow box height; 3.4em when the boxes have captions under them
+\tikzset{drbox/.style={draw=drAccentB, line width=.8pt, fill=drPanel, text=drInk, rounded corners=3pt,
+    align=center, inner xsep=4pt, inner ysep=6pt, minimum height=\drBoxH, text width=#1,
+    execute at begin node={\exhyphenpenalty=10000\hyphenpenalty=10000}},
+  drarrow/.style={-{Stealth[length=7pt]}, drAccent, line width=1.4pt}}
 
-% \drTwoCol{left}{right}: two top-aligned columns
+% \drTwoCol{left}{right}: two top-aligned columns; a block after it goes to the foot of the frame
 \newcommand{\drTwoCol}[2]{\begin{columns}[T,onlytextwidth]
   \begin{column}{0.48\textwidth}#1\end{column}\hfill
-  \begin{column}{0.48\textwidth}#2\end{column}\end{columns}}
+  \begin{column}{0.48\textwidth}#2\end{column}\end{columns}\par\vfill}
 % \drImageRight{images/img1.png}{left content}
-\newcommand{\drImageRight}[2]{\drTwoCol{#2}{\centering\includegraphics[width=\linewidth,height=\drChartH,keepaspectratio]{#1}}}
+\newcommand{\drImageRight}[2]{\drTwoCol{#2}{\centering\includegraphics[width=\linewidth,height=\dimexpr\drChartH\relax,keepaspectratio]{#1}}}
 
-% \drBigNumber{0.831}{held-out test accuracy}{one sentence of context, or empty}
-\newcommand{\drBigNumber}[3]{\par\vfill{\centering
-  {\drNumFont\drHero\color{drAccent}#1\par}\vskip6pt
-  \drKpiLabel{#2}\par
-  \if\relax\detokenize{#3}\relax\else\vskip12pt{\drBody\color{drInk}#3\par}\fi}}% beamer's own \vfill below centres it
+% \drBigNumber{0.831}{held-out test accuracy}{one sentence of context, or empty}: as tall as the frame body, so in
+% \drTwoCol it fills its column beside bullets or a chart; the number shrinks only if it is wider than the column
+\newcommand{\drBigNumber}[3]{\par\vbox to \dimexpr\drBodyH-12pt\relax{\vskip0pt plus.5fil\centering
+  \sbox0{\drNumFont\drHero\color{drAccent}#1}%
+  \noindent\ifdim\wd0>\linewidth\resizebox{\linewidth}{!}{\usebox0}\else\usebox0\fi\par\vskip10pt
+  {\drSmall\drKpiLabel{#2}\par}%
+  \if\relax\detokenize{#3}\relax\else\vskip16pt plus1fil{\drBody\color{drInk}#3\par}\fi\vskip0pt plus.5fil}\par}
 
 % \drCallout{text}: a panel with an accent bar down its left edge
 \newcommand{\drCallout}[1]{\par\noindent\begin{tikzpicture}
-  \pgfmathsetlengthmacro\drCW{\linewidth-23pt}%
-  \node[fill=drPanel, text=drInk, font=\drBody, inner sep=10pt, text width=\drCW, align=left] (c) {#1};
-  \fill[drAccent] (c.north west) rectangle ([xshift=3pt]c.south west);\end{tikzpicture}\par\vskip0.6em}
+  \pgfmathsetlengthmacro\drCW{\linewidth-30pt}%
+  \node[fill=drPanel, text=drInk, font=\drBody, inner xsep=15pt, inner ysep=12pt, text width=\drCW, align=left] (c) {#1};
+  \fill[drAccent] (c.north west) rectangle ([xshift=4pt]c.south west);\end{tikzpicture}\par\vskip0.6em}
 
-% \drFlow{Data, Augment, {ResNet, 3 stages}, SGD}: boxes and arrows across the line (2-5 boxes; brace a label with a comma)
-\newcommand{\drFlow}[1]{\par\noindent\setcounter{drI}{0}\foreach \x in {#1}{\stepcounter{drI}}%
-  \pgfmathsetlengthmacro\drW{(\linewidth-(\value{drI}-1)*0.9cm)/\value{drI}-14pt}%
-  \begin{tikzpicture}[node distance=0.9cm]\setcounter{drI}{0}
+% \drFlow{Data, Augment, {ResNet, 3 stages}, SGD}[45k/5k split, crop + flip, 0.27M params, step LR]:
+% boxes and arrows across the line (2-5 boxes; brace a label with a comma), and optionally a short caption under each box
+\NewDocumentCommand{\drFlow}{m o}{\par\noindent\setcounter{drI}{0}\foreach \x in {#1}{\stepcounter{drI}}%
+  \pgfmathsetlengthmacro\drW{(\linewidth-(\value{drI}-1)*0.6cm)/\value{drI}-10pt}%
+  \ifnum\value{drI}>4 \def\drFF{\drSmall}\else\def\drFF{\drBody}\fi% five boxes are too narrow for body type
+  \IfValueT{#2}{\def\drBoxH{3.4em}\foreach \c [count=\i] in {#2}{\global\expandafter\let\csname drFC\i\endcsname\c}}%
+  \begin{tikzpicture}[node distance=0.6cm, every node/.append style={font=\drFF}]\setcounter{drI}{0}
   \foreach \x in {#1}{\stepcounter{drI}\pgfmathtruncatemacro\drP{\value{drI}-1}
     \ifnum\value{drI}=1 \node[drbox=\drW] (n1) {\x};
-    \else\node[drbox=\drW, right=of n\drP] (n\thedrI) {\x};\draw[drarrow] (n\drP) -- (n\thedrI);\fi}
-  \end{tikzpicture}\par\vskip0.8em}
+    \else\node[drbox=\drW, right=of n\drP] (n\thedrI) {\x};\draw[drarrow] (n\drP) -- (n\thedrI);\fi
+    \IfValueT{#2}{\ifcsname drFC\thedrI\endcsname\node[below=8pt of n\thedrI, font=\drSmall, text=drMuted, text width=\drW+4pt, align=center, anchor=north] {\csname drFC\thedrI\endcsname};\fi}}
+  \end{tikzpicture}\par\vfill}
 
 % \drTimeline{2026-03-01/Started the repo, 2026-04-10/First demo, ...}: dots on a line, date above, event below
 % (from repo.milestones; an event with a comma goes in braces, no / inside an event)
 \newcommand{\drTimeline}[1]{\par\noindent\setcounter{drI}{0}\foreach \drD/\drM in {#1}{\stepcounter{drI}}%
   \pgfmathsetlengthmacro\drCell{\linewidth/\value{drI}}%
-  \pgfmathsetlengthmacro\drTW{min(\drCell-3mm,4.2cm)}%
-  \begin{tikzpicture}\path (0,0) -- (\linewidth,0);
-  \draw[drGrid, line width=2pt] (0.5*\drCell,0) -- (\linewidth-0.5*\drCell,0);\setcounter{drI}{0}
+  \pgfmathsetlengthmacro\drTW{min(\drCell-2mm,4.6cm)}%
+  \begin{tikzpicture}\path[line width=0pt] (0,0) -- (\linewidth,0);
+  \draw[drGrid, line width=3pt] (0.5*\drCell,0) -- (\linewidth-0.5*\drCell,0);\setcounter{drI}{0}
   \foreach \drD/\drM in {#1}{\stepcounter{drI}\pgfmathsetlengthmacro\drX{(\value{drI}-0.5)*\drCell}
-    \fill[drAccent] (\drX,0) circle (3.5pt);
-    \node[above=6pt, font=\drSmall, text=drMuted] at (\drX,0) {\drD};
-    \node[below=6pt, font=\drBody, text=drInk, text width=\drTW, align=center, anchor=north] at (\drX,0) {\drM};}
-  \end{tikzpicture}\par}
+    \fill[drAccent] (\drX,0) circle (5pt);
+    \node[above=9pt, font=\drSub, text=drMuted] at (\drX,0) {\drD};
+    \node[below=9pt, font=\drBody, text=drInk, inner xsep=0pt, text width=\drTW, align=center, anchor=north] at (\drX,0) {\drM};}
+  \end{tikzpicture}\par\vfill}
 
 % \drSection{title}{subtitle}: a divider frame (counts as a frame)
 \newcommand{\drSection}[2]{\begin{frame}[plain,c]\relax

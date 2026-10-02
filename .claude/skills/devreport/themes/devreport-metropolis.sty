@@ -4,8 +4,7 @@
 
 \usetheme[progressbar=frametitle,numbering=fraction,sectionpage=none]{metropolis}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
-% type scale (the rest keeps devreport-core's defaults)
-\renewcommand{\drH}{\large}
+% type scale: devreport-core's, with this theme's title-page sizes
 
 % metropolis looks up Fira by system name; load it from the bundle by file so it never falls back
 \setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Regular,ItalicFont=*-LightItalic,BoldItalicFont=*-Italic]
@@ -37,6 +36,10 @@
   {\drBody\color{drInk}\insertauthor\par}\vskip0.2em
   {\drSmall\color{drMuted}\insertdate\par}
   }% beamer adds the bottom \vfill
+% slimmer chrome for the bigger type: metropolis pads its title bar by 2.2ex and its footline by 3ex of the body font
+\makeatletter\setlength{\metropolis@frametitle@padding}{1.5ex}\makeatother
+\setbeamertemplate{footline}{\begin{beamercolorbox}[wd=\textwidth,sep=1.2ex]{footline}%
+  \usebeamerfont{page number in head/foot}\usebeamertemplate*{frame footer}\hfill\usebeamertemplate*{frame numbering}\end{beamercolorbox}}
 % bigger accent bullets: Fira Light's dot is too faint
 \setbeamertemplate{itemize item}{\color{drAccent}\raisebox{0.1ex}{$\bullet$}}
 \endinput

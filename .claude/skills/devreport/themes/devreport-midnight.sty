@@ -35,20 +35,25 @@
 \makeatletter
 \@ifclassloaded{beamer}{%
   \newcommand{\drTitle}{\fontsize{28}{32}\selectfont}% title on the title page
-  \newcommand{\drH}{\Large}%                     frame titles
-  \newcommand{\drSub}{\normalsize}%              frame subtitles, block titles
-  \newcommand{\drCaption}{\scriptsize}%          captions, footline, stat-tile labels, numbers on bars
+  % sized for a 160 x 90 mm slide, the same scale as devreport-core
+  \newcommand{\drH}{\fontsize{18}{22}\selectfont}%        frame titles
+  \newcommand{\drSub}{\fontsize{15}{19}\selectfont}%      frame subtitles, block titles, callouts
+  \newcommand{\drBody}{\fontsize{13.5}{16.2}\selectfont}%     body text, bullets at every level, tables
+  \newcommand{\drSmall}{\fontsize{11.5}{14}\selectfont}%  chart text, flow captions, footer lines
+  \newcommand{\drCaption}{\fontsize{10}{12}\selectfont}%  captions, footline, stat-tile labels, numbers on bars
+  \newcommand{\drStat}{\fontsize{28}{30}\selectfont}%     big stat-tile numbers
+  \newcommand{\drHero}{\fontsize{84}{84}\selectfont}%     the number in \drBigNumber
 }{%
   \newcommand{\drTitle}{\fontsize{32}{36}\selectfont}% title on the first page
   \newcommand{\drH}{\Large}%                     sections
   \newcommand{\drSub}{\small}%                   subsections
   \newcommand{\drCaption}{\small}%               figure captions, stat-tile labels
+  \newcommand{\drBody}{\normalsize}%             body text, bullets at every level
+  \newcommand{\drSmall}{\footnotesize}%          chart text, header/footer lines
+  \newcommand{\drStat}{\fontsize{22}{24}\selectfont}% big stat-tile numbers
 }
 \makeatother
 \newcommand{\drLead}{\large}%                    the subtitle line under the title
-\newcommand{\drBody}{\normalsize}%               body text, bullets at every level
-\newcommand{\drSmall}{\footnotesize}%            chart text, header/footer lines
-\newcommand{\drStat}{\fontsize{22}{24}\selectfont}% big stat-tile numbers
 
 % ---- charts ----
 \pgfplotscreateplotcyclelist{devreport}{%
@@ -124,8 +129,8 @@
   \setbeamertemplate{enumerate item}{\color{drAccent}\ttfamily\insertenumlabel.}
   \setbeamerfont{frametitle}{size=\drH,series=\bfseries}
   \setbeamertemplate{frametitle}{%
-    \vskip1.0em\hskip0.2em{\ttfamily\drCaption\color{drMuted}\insertframenumber\ /\ \inserttotalframenumber}\par\vskip0.1em
-    \hskip0.2em{\usebeamerfont{frametitle}\color{drAccent}\ttfamily\$\ }{\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par\vskip0.2em}
+    \vskip0.4em\hskip0.2em{\ttfamily\drCaption\color{drMuted}\insertframenumber\ /\ \inserttotalframenumber}\par\vskip0.1em
+    \hskip0.2em{\usebeamerfont{frametitle}\color{drAccent}\ttfamily\$\ }{\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par\vskip-0.1em}
   \setbeamertemplate{footline}{%
     \leavevmode\hbox to \paperwidth{\hskip1.2em{\ttfamily\drCaption\color{drMuted}~/\insertshorttitle}\hfill
     {\ttfamily\drCaption\color{drMuted}\insertdate}\hskip1.2em}\vskip0.9em}
@@ -138,7 +143,7 @@
     {\ttfamily\drSmall\color{drMuted}// \insertdate}\par
     }% beamer adds the bottom \vfill of a top-aligned frame, so this centres the block
   \RequirePackage{../../.claude/skills/devreport/themes/devreport-layout}% frame layout macros, chart size
-  \renewcommand{\drChartH}{0.68\textheight}% the frame title sits in the text area here
+  \renewcommand{\drBodyH}{0.62\paperheight}% the frame title sits in the text area here
 }{%
   % ================= ARTICLE =================
   \RequirePackage[a4paper,margin=2.4cm,top=2.4cm,bottom=2.6cm]{geometry}

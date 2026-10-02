@@ -28,19 +28,21 @@
 \definecolor{drAccentE}{HTML}{8E6CBA}
 
 % ---- type scale: every text size comes from these names; main.tex uses them and never \small, \Large, \fontsize.
-% An adapter \renewcommand's the ones its theme draws differently; the \setbeamerfont calls below route them.
-\newcommand{\drTitle}{\LARGE}%                 title on the title page
-\newcommand{\drLead}{\large}%                  the subtitle line under the title
-\newcommand{\drH}{\Large}%                     frame titles
-\newcommand{\drSub}{\normalsize}%              frame subtitles, block titles
-\newcommand{\drBody}{\normalsize}%             body text, bullets at every level
-\newcommand{\drSmall}{\footnotesize}%          chart text
-\newcommand{\drCaption}{\scriptsize}%          captions, footline, stat-tile labels, numbers on bars
-\newcommand{\drStat}{\fontsize{22}{24}\selectfont}% big stat-tile numbers
+% Sized for a 160 x 90 mm slide: body about 14pt, so a frame of 3-5 bullets fills it. Adapters keep this scale
+% and only \renewcommand the title-page names their title boxes need; the \setbeamerfont calls below route them.
+\newcommand{\drTitle}{\LARGE}%                          title on the title page
+\newcommand{\drLead}{\large}%                           the subtitle line under the title
+\newcommand{\drH}{\fontsize{18}{22}\selectfont}%        frame titles
+\newcommand{\drSub}{\fontsize{15}{19}\selectfont}%      frame subtitles, block titles, callouts
+\newcommand{\drBody}{\fontsize{13.5}{16.2}\selectfont}%     body text, bullets at every level, tables
+\newcommand{\drSmall}{\fontsize{11.5}{14}\selectfont}%  chart text, flow captions
+\newcommand{\drCaption}{\fontsize{10}{12}\selectfont}%  captions, footline, stat-tile labels, numbers on bars
+\newcommand{\drStat}{\fontsize{28}{30}\selectfont}%     big stat-tile numbers
+\newcommand{\drHero}{\fontsize{84}{84}\selectfont}%     the number in \drBigNumber
 
 % ---- hooks an adapter may \renewcommand ----
 \newcommand{\drNumFont}{\sffamily}                       % big KPI numbers
-\newcommand{\drKpiLabel}[1]{{\sffamily\drCaption\color{drMuted}\MakeUppercase{#1}}}
+\newcommand{\drKpiLabel}[1]{{\sffamily\color{drMuted}\MakeUppercase{#1}}}% at the size around it
 \newcommand{\drPieNum}{\color{white}\bfseries}           % numbers inside pie slices
 \newcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drGrid}
 
@@ -87,7 +89,7 @@
 \newcommand{\drkpi}[2]{%
   \begin{minipage}[t]{0.23\linewidth}\centering
   {\drNumFont\drStat\color{drAccent}#1}\\[3pt]
-  \drKpiLabel{#2}\end{minipage}}
+  {\drCaption\drKpiLabel{#2}}\end{minipage}}
 
 % ---- beamer bits every adapter wants ----
 \setbeamertemplate{navigation symbols}{}

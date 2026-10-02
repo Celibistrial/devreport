@@ -6,8 +6,8 @@
 \def\input@path{{../../.claude/skills/devreport/themes/vendor/moloch/}}
 \usetheme[colortheme variant=dark,progressbar=frametitle,numbering=fraction,sectionpage=none]{moloch}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
-% type scale (the rest keeps devreport-core's defaults)
-\renewcommand{\drH}{\large}
+% type scale: devreport-core's, with this theme's title-page sizes
+\renewcommand{\drBodyH}{0.72\paperheight}
 
 \setsansfont{IBMPlexSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-SemiBold,ItalicFont=*-LightItalic,BoldItalicFont=*-SemiBoldItalic]
 \setmainfont{IBMPlexSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-SemiBold,ItalicFont=*-LightItalic,BoldItalicFont=*-SemiBoldItalic]
@@ -27,6 +27,9 @@
 \definecolor{drAccentC}{HTML}{F3C4A0}
 \definecolor{drAccentD}{HTML}{A9C7EE}
 \definecolor{drAccentE}{HTML}{D7A9E3}
+% slimmer title bar for the bigger type: moloch pads it by a full strut height above and below
+\renewcommand{\moloch@frametitle@margin@top}{\dimexpr0.6\ht\strutbox\relax}
+\renewcommand{\moloch@frametitle@margin@bottom}{\dimexpr0.6\ht\strutbox\relax}
 % a frame title bar a shade darker than the slide, instead of moloch dark's light grey bar
 \setbeamercolor{frametitle}{fg=drInk,bg=drBar}
 \renewcommand{\drPieNum}{\color{drBg}\bfseries}

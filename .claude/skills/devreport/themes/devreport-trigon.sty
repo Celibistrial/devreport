@@ -4,9 +4,8 @@
 
 \usetheme[usesourcefonts=false,numbering=fraction]{trigon}
 \RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
-% type scale (the rest keeps devreport-core's defaults)
+% type scale: devreport-core's, with this theme's title-page sizes
 \renewcommand{\drTitle}{\Large}
-\renewcommand{\drH}{\Large}
 
 \setsansfont{SourceSansPro}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Semibold,ItalicFont=*-RegularIt,BoldItalicFont=*-SemiboldIt]
 \setmainfont{SourceSansPro}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Semibold,ItalicFont=*-RegularIt,BoldItalicFont=*-SemiboldIt]
@@ -27,7 +26,15 @@
 \definecolor{drAccentE}{HTML}{C6C0B4}
 % trigon draws its triangles only through its own \titleframe; main.tex uses a plain \titlepage frame,
 % so the title frame (frame 1) gets the big-triangle title background and every other frame the small corner triangle
-\renewcommand{\drChartH}{0.72\textheight}% taller frame title than core assumes
+\renewcommand{\drBodyH}{0.675\paperheight}
+% trigon's frame title with 0.25cm/0.2cm around it instead of 0.4cm/0.3cm, for the bigger body type
+\setbeamertemplate{frametitle}{\vspace{-1pt}\begin{beamercolorbox}[wd=\paperwidth,leftskip=0.05\paperwidth]{frametitle}\vskip.25cm
+    {\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}%
+    \ifx\insertframesubtitle\@empty\else\\[-.25cm]{\usebeamerfont{framesubtitle}\usebeamercolor[fg]{framesubtitle}\insertframesubtitle}\fi
+    \vskip.2cm\end{beamercolorbox}}
+% trigon pads its footline by 10pt; 4pt gives the bigger body type room
+\setbeamertemplate{footline}{\begin{beamercolorbox}[wd=\textwidth,sep=4pt]{page number in head/foot}%
+  \usebeamerfont{page number in head/foot}\usebeamercolor[fg]{page number in head/foot}\usebeamertemplate*{frame footer}\hfill\usebeamertemplate*{frame numbering}\end{beamercolorbox}}
 % trigon's titlebigimage, started 40pt higher: its fixed 135pt drop pushed the date off the slide
 \setbeamertemplate{title page}{%
   \vskip95pt
