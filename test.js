@@ -332,3 +332,41 @@ test('themes are validated per format and land in theme.tex', () => {
   assert.strictEqual(useThemeTex('x\n\\input{theme.tex}\n'), 'x\n\\input{theme.tex}\n');
   assert.strictEqual(useThemeTex('\\documentclass{beamer}\n\\usetheme{Madrid}'), false);
 });
+
+test('agent tools stay inside the job folder', async () => {
+  const { resolveInJob, writeFile, editFile, compile, SKILL_DIR } = require('./agent');
+  const job = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-agent-')));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-outside-'));
+  fs.writeFileSync(path.join(outside, 'secret.txt'), 'x');
+  fs.mkdirSync(path.join(job, 'sub'));
+  fs.symlinkSync(outside, path.join(job, 'link'));
+  fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(job, 'file-link'));
+  fs.symlinkSync(path.join(outside, 'nope.txt'), path.join(job, 'dangling'));
+  fs.symlinkSync(path.join(job, 'sub'), path.join(job, 'inner-link')); // even a symlink that stays inside is refused
+  assert.strictEqual(resolveInJob(job, 'main.tex'), path.join(job, 'main.tex'));
+  assert.strictEqual(resolveInJob(job, 'template/devreport-custom.sty', { write: true }), path.join(job, 'template/devreport-custom.sty'));
+  assert.strictEqual(resolveInJob(job, path.join(job, 'a/../main.tex'), { write: true }), path.join(job, 'main.tex'));
+  assert.strictEqual(resolveInJob(job, path.join(SKILL_DIR, 'charts.md')), path.join(SKILL_DIR, 'charts.md')); // the skill folder is readable
+  assert.throws(() => resolveInJob(job, path.join(SKILL_DIR, 'charts.md'), { write: true }), /outside/); // ...but not writable
+  for (const p of ['../x', '../../etc/passwd', '/etc/passwd', 'a/../../x', path.join(outside, 'secret.txt'), 'link/secret.txt', 'link/new.txt', 'file-link', 'dangling', 'inner-link/x.tex', '', 'a\0b'])
+    for (const write of [false, true]) assert.throws(() => resolveInJob(job, p, { write }), undefined, `${p} write=${write}`);
+  for (const p of ['job.json', 'theme.tex', 'facts.json', 'agent-messages.json', 'data/x.csv', 'input/answers.md', 'images/img1.png', 'revisions/v1.tex', 'themes/paper.pdf', '.'])
+    assert.throws(() => resolveInJob(job, p, { write: true }), /server|Give/, p);
+  // the tools themselves: an escape throws (the tool wrapper turns it into an error result) and nothing is written
+  await assert.rejects(writeFile({ path: '../escape.txt', content: 'x' }, job), /outside/);
+  assert.ok(!fs.existsSync(path.join(path.dirname(job), 'escape.txt')));
+  await writeFile({ path: 'main.tex', content: 'a b a' }, job);
+  assert.strictEqual((await editFile({ path: 'main.tex', old_string: 'a', new_string: 'c' }, job)).isError, true); // ambiguous
+  await editFile({ path: 'main.tex', old_string: 'a', new_string: '$&', replace_all: true }, job);
+  assert.strictEqual(fs.readFileSync(path.join(job, 'main.tex'), 'utf8'), '$& b $&');
+  for (const file of ['-o', '../x.tex', 'main.tex -o ..', 'sub/main.tex', 'template-test.tex']) assert.strictEqual((await compile({ file }, job)).isError, true, file);
+  fs.rmSync(job, { recursive: true }); fs.rmSync(outside, { recursive: true });
+});
+
+test('describeTool understands the ai engine tool names', () => {
+  const { describeTool } = require('./server');
+  assert.deepStrictEqual(describeTool('compile', {}), ['compile', 'Compiling with tectonic']);
+  assert.deepStrictEqual(describeTool('write_file', { path: 'questions.json' }), ['ask', 'Writing down what it needs to ask you']);
+  assert.deepStrictEqual(describeTool('read_file', { path: '../../.claude/skills/devreport/charts.md' }, '/x/jobs/a'), ['skill', 'Reading the playbook (charts.md)']);
+  assert.deepStrictEqual(describeTool('edit_file', { path: 'main.tex' }), ['edit', 'Editing main.tex']);
+});

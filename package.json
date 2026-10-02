@@ -1,0 +1,14 @@
+{
+  "name": "devreport",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test.js"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "^3.1.0",
+    "ai": "^7.0.127",
+    "ai-sdk-provider-claude-code": "^4.3.3",
+    "zod": "^4.6.5"
+  }
+}
