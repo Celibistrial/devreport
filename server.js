@@ -18,7 +18,12 @@ const ID_RE = /^[0-9a-f]{8}$/;
 const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
 const DEFAULT_PROMPT = 'Follow the devreport skill. Build a {{kind}} with the {{theme}} theme from the inputs in this folder (facts.json, data/, images/, input/). Write main.tex and compile it to main.pdf with tectonic, fixing errors until it compiles.';
 
-const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_PAGE_NOTES = 30;
+const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_PAGE_NOTES = 30, MAX_ANSWER = 2000;
+const LENGTH = { slides: [5, 25, 10], report: [2, 10, 4] }; // min, max, default
+const RESUME = {
+  answered: 'The user answered your questions: read input/answers.md and continue building; do not ask again.',
+  skipped: "The user skipped the questions: continue with what you have, leave out what you can't source; do not ask again.",
+};
 const jobs = new Map(); // id -> { events: [], from, clients: Set, finished }; a revision replays events from `from`
 let busy = null; // ponytail: one job at a time (429 otherwise); add a queue if several users share a server
 
@@ -124,7 +129,8 @@ function describeTool(name, input = {}, jobDir = '.') {
   }
 }
 
-function runClaude(id, jobDir, vars, file = 'prompt.txt') {
+// opts.resume = session id to continue with opts.prompt; opts.append = a line added to the normal prompt
+function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
   let tools = DEFAULT_TOOLS, prompt = DEFAULT_PROMPT;
   try {
     const txt = fs.readFileSync(path.join(ROOT, '.claude/skills/devreport', file), 'utf8');
@@ -136,13 +142,15 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt') {
     step(id, 'think', 'No prompt.txt found, using the default prompt');
   }
   for (const [k, v] of Object.entries(vars)) prompt = prompt.replaceAll(`{{${k}}}`, v);
+  if (opts.append) prompt += '\n' + opts.append;
+  if (opts.resume) prompt = opts.prompt;
 
   return new Promise((resolve, reject) => {
-    const child = spawn('claude', ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools],
+    const child = spawn('claude', [...(opts.resume ? ['--resume', opts.resume] : []), '-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools],
       { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
     const timer = setTimeout(() => { step(id, 'error', 'Timed out after 10 minutes'); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
-    let buf = '', stderr = '', resultText = '', cost, note = '';
+    let buf = '', stderr = '', resultText = '', cost, note = '', sessionId;
     // the latest assistant text is held until the next step, so the last one (the summary) can be shown in full
     const flush = (max = 140) => { if (note) step(id, 'note', note.length > max ? note.slice(0, max - 3) + '…' : note); note = ''; };
     const clean = (t) => String(t || '').trim().replace(/\*\*|`/g, '').replace(/\s+/g, ' ');
@@ -153,7 +161,10 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt') {
         const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
         if (!line) continue;
         let msg; try { msg = JSON.parse(line); } catch { continue; }
-        if (msg.type === 'system' && msg.subtype === 'init') step(id, 'think', 'Claude Code started');
+        if (msg.type === 'system' && msg.subtype === 'init') {
+          sessionId = msg.session_id;
+          step(id, 'think', opts.resume ? 'Claude Code picked up where it left off' : 'Claude Code started');
+        }
         for (const c of msg.message?.content || []) {
           if (msg.type === 'assistant' && c.type === 'tool_use') {
             const [icon, text] = describeTool(c.name, c.input, jobDir);
@@ -170,7 +181,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt') {
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
     child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'claude CLI not found on PATH' : e.message)); });
-    child.on('close', (code) => { clearTimeout(timer); flush(); resolve({ code, stderr, resultText, cost }); });
+    child.on('close', (code) => { clearTimeout(timer); flush(); resolve({ code, stderr, resultText, cost, sessionId }); });
   });
 }
 
@@ -182,9 +193,77 @@ async function setStatus(jobDir, status, extra = {}) {
 }
 const doneData = (id, j) => ({ pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, kind: j.kind, version: (j.revisions || 0) + 1 });
 
-async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
+// runs fn; any throw marks the job failed. Releases the busy guard either way
+async function guarded(id, jobDir, fn) {
+  try { await fn(); } catch (e) {
+    await setStatus(jobDir, 'failed').catch(() => {});
+    emit(id, 'failed', { error: e.message });
+  } finally {
+    busy = null;
+  }
+}
+
+const unit = (kind) => (kind === 'slides' ? 'slides' : 'pages');
+function parseLength(raw, kind) {
+  const [min, max, def] = LENGTH[kind];
+  if (raw == null || raw === '') return def;
+  if (!/^\d+$/.test(String(raw)) || +raw < min || +raw > max) throw new Error(`Length must be a whole number from ${min} to ${max} ${unit(kind)}`);
+  return +raw;
+}
+
+// questions.json is written by Claude from untrusted input: keep only well-formed, short questions
+function parseQuestions(txt) {
+  let q; try { q = JSON.parse(txt).questions; } catch { return []; }
+  if (!Array.isArray(q)) return [];
+  const seen = new Set();
+  return q.filter((x) => x && /^q\d$/.test(x.id) && !seen.has(x.id) && seen.add(x.id) && typeof x.question === 'string' && x.question.trim())
+    .slice(0, 3).map((x) => ({ id: x.id, question: x.question.trim().slice(0, 300), why: typeof x.why === 'string' ? x.why.trim().slice(0, 200) : '' }));
+}
+
+// {answers:{q1:"..."}} or {skip:true} -> {skip} | {answers:[{question, answer}]}; throws on anything malformed
+function parseAnswers(buf, questions) {
+  let b; try { b = JSON.parse(buf); } catch { throw new Error('Body must be JSON'); }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) throw new Error('Body must be a JSON object');
+  if (b.skip === true) return { skip: true };
+  if (!b.answers || typeof b.answers !== 'object' || Array.isArray(b.answers)) throw new Error('Send {answers:{q1:"..."}} or {skip:true}');
+  for (const [k, v] of Object.entries(b.answers)) {
+    if (!questions.some((q) => q.id === k)) throw new Error(`Unknown question ${k.slice(0, 20)}`);
+    if (typeof v !== 'string') throw new Error('Each answer must be a string');
+    if (v.length > MAX_ANSWER) throw new Error(`An answer is over ${MAX_ANSWER} characters`);
+  }
+  const answers = questions.map((q) => ({ question: q.question, answer: (b.answers[q.id] || '').trim() })).filter((a) => a.answer);
+  if (!answers.length) throw new Error('Answer at least one question, or skip');
+  return { answers };
+}
+
+// one claude run, then: done, or waiting on questions (first run only), or a throw
+async function build(id, jobDir, j, resumeLine) {
+  const vars = { kind: j.kind, theme: j.theme, length: `${j.length || LENGTH[j.kind][2]} ${unit(j.kind)}` };
+  let r = j.sessionId && resumeLine ? await runClaude(id, jobDir, vars, 'prompt.txt', { resume: j.sessionId, prompt: resumeLine }) : null;
+  if (resumeLine && !r?.sessionId) { // the session is gone: start over with the normal prompt plus the line
+    if (r) step(id, 'think', 'The earlier session is gone, starting a fresh run');
+    r = await runClaude(id, jobDir, vars, 'prompt.txt', { append: resumeLine });
+  }
+  r ||= await runClaude(id, jobDir, vars);
+  const { code, stderr, resultText, cost, sessionId } = r;
+  const qf = path.join(jobDir, 'questions.json');
+  if (!fs.existsSync(path.join(jobDir, 'main.pdf'))) {
+    const questions = !resumeLine && fs.existsSync(qf) ? parseQuestions(await fsp.readFile(qf, 'utf8')) : [];
+    if (questions.length) {
+      await setStatus(jobDir, 'waiting', { sessionId, asked: true, askCost: cost });
+      emit(id, 'questions', { questions });
+      return;
+    }
+    throw new Error(`Claude finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
+  }
+  await fsp.rm(qf, { force: true });
+  await setStatus(jobDir, 'done', { sessionId });
+  emit(id, 'done', { ...doneData(id, j), cost: cost + (j.askCost || 0) || cost });
+}
+
+function pipeline(id, jobDir, { zips, repoUrl, template }, j) {
   const inputDir = path.join(jobDir, 'input');
-  try {
+  return guarded(id, jobDir, async () => {
     await setStatus(jobDir, 'running');
     for (const z of zips) {
       step(id, 'zip', `Unpacking ${z}`);
@@ -226,19 +305,32 @@ async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
       step(id, 'template', `Template: ${Object.keys(t.colors).length} colours, ${fonts}, ${t.media.length} image${t.media.length === 1 ? '' : 's'}`);
     }
 
-    step(id, 'think', `Handing off to Claude Code (${kind}, ${theme} theme)`);
-    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, { kind, theme });
-    if (!fs.existsSync(path.join(jobDir, 'main.pdf'))) {
-      throw new Error(`Claude finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
-    }
-    await setStatus(jobDir, 'done');
-    emit(id, 'done', { ...doneData(id, { kind }), cost });
-  } catch (e) {
-    await setStatus(jobDir, 'failed').catch(() => {});
-    emit(id, 'failed', { error: e.message });
-  } finally {
-    busy = null;
-  }
+    step(id, 'think', `Handing off to Claude Code (${j.kind}, ${j.theme} theme, about ${j.length} ${unit(j.kind)})`);
+    await build(id, jobDir, j);
+  });
+}
+
+async function answerJob(req, res, id) {
+  const jobDir = path.join(JOBS, id);
+  let j; try { j = JSON.parse(await fsp.readFile(path.join(jobDir, 'job.json'), 'utf8')); } catch { return json(res, 404, { error: 'No such job' }); }
+  if (busy) return json(res, 409, { error: 'A report is being generated or revised. Try again when it finishes.' });
+  if (j.status !== 'waiting') return json(res, 409, { error: 'This job is not waiting for answers' });
+  if (+req.headers['content-length'] > 16 * 1024) return json(res, 413, { error: 'Answers are too long' });
+  busy = id;
+  let got;
+  try {
+    const questions = parseQuestions(await fsp.readFile(path.join(jobDir, 'questions.json'), 'utf8').catch(() => ''));
+    got = parseAnswers(await readBody(req, 16 * 1024, 'Answers are too long'), questions);
+  } catch (e) { busy = null; return json(res, e.status || 400, { error: e.message }); }
+  if (got.answers) await fsp.writeFile(path.join(jobDir, 'input', 'answers.md'), got.answers.map((a) => `## ${a.question}\n\n${a.answer}\n`).join('\n'));
+  await fsp.rm(path.join(jobDir, 'questions.json'), { force: true });
+  await setStatus(jobDir, 'running');
+  if (!jobs.has(id)) jobs.set(id, { events: [], clients: new Set() }); // server restarted while waiting
+  jobs.get(id).finished = false;
+  json(res, 202, { ok: true });
+  const n = got.answers?.length;
+  step(id, 'answer', n ? `Got ${n} answer${n === 1 ? '' : 's'}, continuing` : 'Skipped the questions, continuing with what there is');
+  guarded(id, jobDir, () => build(id, jobDir, j, n ? RESUME.answered : RESUME.skipped));
 }
 
 // ---------- revisions ----------
@@ -343,13 +435,15 @@ async function createJob(req, res) {
     if (pptx && !/\.pptx$/i.test(pptx.filename)) throw new Error('The template must be a .pptx file');
     const theme = pptx ? 'custom' : fields.theme === 'midnight' ? 'midnight' : 'paper';
     const repoUrl = normalizeRepoUrl(fields.repoUrl);
+    const length = parseLength(fields.length, kind);
     const inputs = files.filter((f) => f.name !== 'template');
     if (!inputs.length && !repoUrl) throw new Error('Add some files, a zip or a GitHub URL');
 
     const id = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
     const jobDir = path.join(JOBS, id), inputDir = path.join(jobDir, 'input');
     await fsp.mkdir(inputDir, { recursive: true });
-    await fsp.writeFile(path.join(jobDir, 'job.json'), JSON.stringify({ id, kind, theme, ...(pptx && { template: true }), status: 'queued', createdAt: new Date().toISOString() }, null, 2));
+    const j = { id, kind, theme, length, ...(pptx && { template: true }), status: 'queued', createdAt: new Date().toISOString() };
+    await fsp.writeFile(path.join(jobDir, 'job.json'), JSON.stringify(j, null, 2));
     if (pptx) await fsp.writeFile(path.join(jobDir, 'template.pptx'), pptx.data);
 
     const taken = new Set(), zips = [];
@@ -358,16 +452,13 @@ async function createJob(req, res) {
       await fsp.writeFile(path.join(inputDir, name), f.data);
       if (/\.zip$/i.test(name)) zips.push(name);
     }
-    const qs = [['What problem does it solve and who is it for?', fields.problem], ['Proudest result (and how it was measured)', fields.proud], ['What did I learn, and what was hard?', fields.learned], ["What's next?", fields.next]]
-      .filter(([, a]) => a && a.trim());
-    if (qs.length) await fsp.writeFile(path.join(inputDir, 'answers.md'), qs.map(([q, a]) => `## ${q}\n\n${a.trim()}\n`).join('\n'));
 
     jobs.set(id, { events: [], clients: new Set(), finished: false });
     busy = id;
     const got = [inputs.length && `${inputs.length} file${inputs.length === 1 ? '' : 's'}`, repoUrl && 'a GitHub link'].filter(Boolean).join(' and ');
-    step(id, 'upload', `Received ${got}${qs.length ? `, ${qs.length} answer${qs.length === 1 ? '' : 's'}` : ''}`);
+    step(id, 'upload', `Received ${got}`);
     json(res, 201, { id });
-    pipeline(id, jobDir, { zips, repoUrl, kind, theme, template: pptx && path.basename(pptx.filename) });
+    pipeline(id, jobDir, { zips, repoUrl, template: pptx && path.basename(pptx.filename) }, j);
   } catch (e) {
     busy = null;
     json(res, e.status || 400, { error: e.message });
@@ -380,6 +471,10 @@ function sse(req, res, id) {
   if (!job) { // server restarted: answer from disk
     let j = {}; try { j = JSON.parse(fs.readFileSync(path.join(JOBS, id, 'job.json'), 'utf8')); } catch {}
     const pdf = fs.existsSync(path.join(JOBS, id, 'main.pdf'));
+    if (j.status === 'waiting') {
+      let questions = []; try { questions = parseQuestions(fs.readFileSync(path.join(JOBS, id, 'questions.json'), 'utf8')); } catch {}
+      if (questions.length) { send(res, { type: 'questions', data: { questions, t: Date.now() } }); return res.end(); }
+    }
     send(res, pdf ? { type: 'done', data: { ...doneData(id, j), t: Date.now() } } : { type: 'failed', data: { error: 'Unknown or interrupted job' } });
     return res.end();
   }
@@ -404,8 +499,8 @@ const server = http.createServer((req, res) => {
   const p = url.pathname;
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(ROOT, 'index.html'), 'text/html; charset=utf-8');
   if (req.method === 'POST' && p === '/api/jobs') return createJob(req, res);
-  const r = /^\/api\/jobs\/([^/]+)\/revise$/.exec(p);
-  if (req.method === 'POST' && r) return ID_RE.test(r[1]) ? reviseJob(req, res, r[1]) : json(res, 400, { error: 'Bad job id' });
+  const r = /^\/api\/jobs\/([^/]+)\/(revise|answers)$/.exec(p);
+  if (req.method === 'POST' && r) return !ID_RE.test(r[1]) ? json(res, 400, { error: 'Bad job id' }) : r[2] === 'revise' ? reviseJob(req, res, r[1]) : answerJob(req, res, r[1]);
   const m = /^\/api\/jobs\/([^/]+)\/(events|main\.pdf|main\.tex|v\d{1,3}\.pdf)$/.exec(p);
   if (req.method === 'GET' && m) {
     if (!ID_RE.test(m[1])) return json(res, 400, { error: 'Bad job id' });
@@ -418,4 +513,4 @@ const server = http.createServer((req, res) => {
 });
 
 if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT}`));
-module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision };
+module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision, parseLength, parseQuestions, parseAnswers };

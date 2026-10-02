@@ -220,3 +220,20 @@ test('parseRevision validates revise feedback', () => {
     ['{"pages":{}}', /array/], [JSON.stringify({ pages: [{ page: 1, note: 'x'.repeat(1001) }] }), /over 1000/]])
     assert.throws(() => parseRevision(body), re);
 });
+
+test('length, questions.json and answers are validated', () => {
+  const { parseLength, parseQuestions, parseAnswers } = require('./server');
+  assert.strictEqual(parseLength(undefined, 'slides'), 10);
+  assert.strictEqual(parseLength('6', 'slides'), 6);
+  assert.strictEqual(parseLength('2', 'report'), 2);
+  for (const [v, k] of [['4', 'slides'], ['26', 'slides'], ['11', 'report'], ['3.5', 'report'], ['abc', 'report']]) assert.throws(() => parseLength(v, k), /whole number/);
+  const qs = parseQuestions(JSON.stringify({ questions: [{ id: 'q1', question: ' What is it? ', why: 'no README' }, { id: 'q1', question: 'dup' }, { id: 'x', question: 'bad id' },
+    { id: 'q2', question: 'Who for?' }, { id: 'q3', question: 'Result?' }, { id: 'q4', question: 'too many' }] }));
+  assert.deepStrictEqual(qs.map((q) => q.id), ['q1', 'q2', 'q3']);
+  assert.strictEqual(qs[0].question, 'What is it?');
+  assert.deepStrictEqual(parseQuestions('not json'), []);
+  assert.deepStrictEqual(parseAnswers('{"skip":true}', qs), { skip: true });
+  assert.deepStrictEqual(parseAnswers(JSON.stringify({ answers: { q2: ' students ', q1: '' } }), qs), { answers: [{ question: 'Who for?', answer: 'students' }] });
+  for (const [body, re] of [['nope', /JSON/], ['{"answers":{"q9":"x"}}', /Unknown/], ['{"answers":{"q1":5}}', /string/],
+    [JSON.stringify({ answers: { q1: 'x'.repeat(2001) } }), /over/], ['{"answers":{"q1":"  "}}', /at least one/], ['{}', /skip/]]) assert.throws(() => parseAnswers(body, qs), re);
+});
