@@ -47,14 +47,40 @@ The default (cli) engine needs no `npm install`: the server is Node's standard l
 `DEVREPORT_ENGINE` picks who runs the agent (default `cli`):
 
 - **cli**: Claude Code headless (`claude -p`) with the tool allowlist above.
-- **ai**: `agent.js`, our own loop on the [Vercel AI SDK](https://ai-sdk.dev) (Node 22+, `npm install` first). The model gets exactly four tools, `read_file`, `write_file`, `edit_file` and `compile` (`tectonic main.tex`, no arguments), and every path goes through one check that refuses anything outside the job folder, any symlink, and the server's own files (job.json, facts.json, data/, input/ ...). The skill files are readable, not writable. So the sandbox is tighter than the cli allowlist, and the model is pluggable via `DEVREPORT_MODEL=<provider>:<model>`:
-  - `claude-code:opus` (default) or `claude-code:sonnet`: runs on your Claude Code login through `ai-sdk-provider-claude-code`, for local testing. Our tools go in as an in-process MCP server and every built-in Claude Code tool is switched off.
-  - `openrouter:<model id>` with `OPENROUTER_API_KEY`: any OpenRouter model, with the AI SDK running the tool loop (at most 80 steps). Wired and type-checked, but not yet tested against a real key.
+- **ai**: `agent.js`, our own loop on the [Vercel AI SDK](https://ai-sdk.dev) (Node 22+, `npm install` first). The model gets exactly four tools, `read_file`, `write_file`, `edit_file` and `compile` (`tectonic main.tex`, no arguments), and every path goes through one check that refuses anything outside the job folder, any symlink, and the server's own files (job.json, facts.json, data/, input/ ...). The skill files are readable, not writable. So the sandbox is tighter than the cli allowlist, and the model is pluggable via `DEVREPORT_MODEL=<provider>:<model>` (everything after the first colon is the model id):
+
+| Provider | Env vars | Example `DEVREPORT_MODEL` |
+|---|---|---|
+| `claude-code` (default) | none, uses your Claude Code login | `claude-code:opus`, `claude-code:sonnet` |
+| `openai-compatible` | `DEVREPORT_BASE_URL` (the `/v1` URL), `DEVREPORT_API_KEY` if the server wants one | `openai-compatible:qwen3:8b` |
+| `openrouter` | `OPENROUTER_API_KEY` | `openrouter:anthropic/claude-sonnet-4.5` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `anthropic:claude-sonnet-4-5` |
+| `openai` | `OPENAI_API_KEY` | `openai:gpt-5` |
+| `google` | `GOOGLE_GENERATIVE_AI_API_KEY` | `google:gemini-2.5-pro` |
+
+`openai-compatible` covers any server that speaks the OpenAI chat API: Groq (`https://api.groq.com/openai/v1`), Together (`https://api.together.xyz/v1`), DeepSeek (`https://api.deepseek.com/v1`), OpenRouter (`https://openrouter.ai/api/v1`), and local ones like Ollama (`http://127.0.0.1:11434/v1`), LM Studio (`http://127.0.0.1:1234/v1`) or vLLM. A missing key or URL stops the run with a message naming the variable.
+
+With `claude-code`, our tools go in as an in-process MCP server and every built-in Claude Code tool is switched off. With every other provider the AI SDK runs the tool loop, with guard rails for weaker models: at most 80 model steps, retried API calls, `facts.json` handed over up front, bad tool arguments sent back as an error the model can fix, the same call three times in a row refused, a compile error inside a `\dr*` macro answered with that macro's usage, and a model that stops before there is a `main.pdf` (and didn't ask questions) told up to twice to compile. The `openai-compatible` provider can't pass images in tool results, so the model gets a short note instead of screenshots or rendered pages.
 
 ```bash
 npm install
 DEVREPORT_ENGINE=ai DEVREPORT_MODEL=claude-code:opus node server.js
+DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai:gpt-5 OPENAI_API_KEY=sk-... node server.js
+DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai-compatible:llama-3.3-70b-versatile \
+  DEVREPORT_BASE_URL=https://api.groq.com/openai/v1 DEVREPORT_API_KEY=gsk_... node server.js
 ```
+
+Fully local, no key, with [Ollama](https://ollama.com):
+
+```bash
+brew install ollama
+OLLAMA_CONTEXT_LENGTH=32768 ollama serve      # the skill alone is ~6k tokens; Ollama's default context is too small
+ollama pull qwen3:8b
+DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai-compatible:qwen3:8b DEVREPORT_BASE_URL=http://127.0.0.1:11434/v1 \
+  DEVREPORT_REASONING_EFFORT=none DEVREPORT_TIMEOUT_MIN=30 node server.js
+```
+
+`DEVREPORT_REASONING_EFFORT` is passed as `reasoning_effort` (`none` turns off qwen3's thinking, which made each step 1–3 minutes instead of seconds). `DEVREPORT_TIMEOUT_MIN` raises the 10-minute agent timeout. On an M4 with 16 GB, qwen3:8b built the 01 sample deck in about 7 minutes: real names and features from the README, the screenshot placed, a flow and a timeline, but text overflow, overlapping timeline dates and no charts. It does not decide to ask questions on its own, and sometimes can't get past a compile error. Expect Claude-level decks only from Claude, GPT-5 or Gemini class models.
 
 ## Files
 
