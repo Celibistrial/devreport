@@ -4,7 +4,7 @@ Turn a messy project folder into a polished PDF report or slide deck.
 
 Drop in dev logs, notes, a CSV, screenshots, a `.zip`, or just paste a GitHub link. devreport analyses it with plain code, asks you four optional questions it can't answer from files (what problem it solves, the result you're proudest of, what you learned, what's next), then has Claude Code write and compile a LaTeX report or Beamer deck, live in your browser.
 
-**Who it's for:** student builders who have to write up a hackathon, coursework or side project and would rather keep building.
+It's for student builders who have to write up a hackathon, coursework or side project and would rather keep building.
 
 Samples: [report (Paper theme)](samples/report-paper.pdf) · [slides (Midnight theme)](samples/slides-midnight.pdf)
 
@@ -18,7 +18,7 @@ upload / zip / GitHub link
   → main.pdf       shown inline, with the .tex to download
 ```
 
-- **Charts can't lie.** Every chart is pgfplots reading a CSV that `collect.js` computed (`\addplot table{data/commits_per_day.csv}`). Claude never types a number into a chart, and stat numbers come from `facts.json`.
+- **Charts only plot computed data.** Every chart is pgfplots reading a CSV that `collect.js` computed (`\addplot table{data/commits_per_day.csv}`). Claude never types a number into a chart, and stat numbers come from `facts.json`.
 - **Our code does the analysis, Claude writes the prose.** Milestones from git history (vendored and generated code excluded), the likely entry points of the code, recurring errors (numbers/IDs normalized so repeats group together), and column-type detection for your own CSV/JSON are all deterministic and tested. Commit counts and lines of code aren't treated as evidence of anything: they only show up as a timeline or an appendix sentence.
 - **Locked-down agent.** Claude Code runs headless with only `Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill`: no general shell, and it can only write inside the job folder. Uploaded content is treated as data, never instructions.
 - **Safe intake.** Zips are size-checked before extracting (zip bombs), path-escaping entries are rejected, symlinks are deleted. GitHub URLs are validated and cloned without a shell, with a timeout.

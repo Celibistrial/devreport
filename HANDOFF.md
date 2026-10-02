@@ -101,7 +101,7 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 - **Untrusted `.git/`:** a zip may contain a repo. Only ever run `git log` on it, with `GIT_CONFIG_NOSYSTEM=1`; never `git status` or anything that runs hooks.
 - **GitHub URL:** strip a trailing `.git`, `/tree/<branch>...` and `/`, then it must match `^https://github\.com/[\w.-]+/[\w.-]+$`. Run `git clone --single-branch <url> input/repo` via `execFile` (no shell) with `GIT_TERMINAL_PROMPT=0` so a private repo fails fast instead of hanging. Full history is needed for `git log --numstat`. Cap with a timeout (~60 s).
 
-**Questions form** (fixed, not a Claude call — deterministic for the demo, no extra wait):
+**Questions form** (fixed, not a Claude call, so it's deterministic for the demo and adds no wait):
 
 1. After upload, the UI always shows 4 optional questions: *What problem does it solve and who is it for?*, *What result are you proudest of, and how did you measure it?*, *What did you learn / what was hard?*, *What's next?*
 2. Answers are saved as `input/answers.md` and treated as notes. Blank answers are fine.
@@ -185,7 +185,7 @@ Ship 2 presets (Paper, Midnight). Minimal and Campus only if there's time left. 
 - [x] Idea, scope and architecture decided
 - [x] Repo dir created (`~/dev/devreport`), git initialized
 - [x] Plan reviewed (Fable): cut gap-check call → fixed form, 2 themes, no showcase site, PPT import last
-- [x] Part 0: proof — skills load from `jobs/<id>/` cwd, tectonic runs under the allowlist; themes load via `\usepackage{../../.claude/skills/devreport/themes/devreport-<theme>}`
+- [x] Part 0: proof. Skills load from `jobs/<id>/` cwd, tectonic runs under the allowlist; themes load via `\usepackage{../../.claude/skills/devreport/themes/devreport-<theme>}`
 - [x] Part 1: collector + tests (`node --test test.js`, not bare `node --test`: that also runs tests inside cloned jobs)
 - [x] Part 2: devreport skill, tested chart snippets, prompt.txt (first line = ALLOWED_TOOLS)
 - [x] Part 3–4: server.js + index.html (zip/GitHub intake, fixed questions form, SSE feed with cost)
