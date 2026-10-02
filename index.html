@@ -795,7 +795,7 @@ function setState(s, pill) {
 // raw steps sit under "Show details". Built only from the event order, so a replay rebuilds the same list
 const RANK = { upload: 0, zip: 1, clone: 1, collect: 2, template: 3, read: 4, write: 5, compile: 6, humanize: 7, review: 8 };
 const PHASE = { think: 'read', skill: 'read', doc: 'read', data: 'read', code: 'read', image: 'read', search: 'read', tex: 'read', edit: 'write', theme: 'write', plan: 'write' };
-const MILESTONE = new Set(['revise', 'answer', 'questions', 'final', 'done', 'failed']); // always a line of their own
+const MILESTONE = new Set(['revise', 'answer', 'questions', 'done', 'failed']); // always a line of their own; the agent's final summary stays under Show details
 let ph = null, feedKind = ''; // ph: the phase line being updated {key, li, n, err, extra, text}
 const phLabel = (k) => ({ upload: feed.querySelector('.k-revise') ? 'Adding material' : 'Uploading', zip: 'Unpacking', clone: 'Cloning', collect: 'Analysing your files',
   template: 'Reading your template', read: 'Reading your project', write: `Writing the ${feedKind || 'document'}`, compile: 'Compiling', humanize: 'Polishing the prose', review: 'Checking the result' }[k]);
