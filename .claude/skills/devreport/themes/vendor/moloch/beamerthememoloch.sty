@@ -1,0 +1,62 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{beamerthememoloch}[2026-02-17 v2.2.0 Moloch theme]
+\RequirePackage{pgfopts}
+\pgfkeys{/moloch/.cd,
+  .search also={
+      /moloch/inner,
+      /moloch/outer,
+      /moloch/color,
+      /moloch/font,
+    }
+}
+\pgfkeys{/moloch/.cd,
+  colortheme/.code=\pgfkeysalso{/moloch/colors/theme=#1},
+  colorthemevariant/.code=\pgfkeysalso{/moloch/colors/variant=#1},
+  colortheme variant/.code=\pgfkeysalso{/moloch/colors/variant=#1},
+}
+\pgfkeys{
+  /moloch/titleformat plain/.cd,
+  .is choice,
+  regular/.code={%
+      \let\moloch@plaintitleformat\@empty%
+      \setbeamerfont{standout}{shape=\normalfont}%
+    },
+  smallcaps/.code={%
+      \let\moloch@plaintitleformat\@empty%
+      \setbeamerfont{standout}{shape=\scshape}%
+    },
+  allsmallcaps/.code={%
+      \let\moloch@plaintitleformat\MakeLowercase%
+      \setbeamerfont{standout}{shape=\scshape}%
+    },
+  allcaps/.code={%
+      \let\moloch@plaintitleformat\MakeUppercase%
+      \setbeamerfont{standout}{shape=\normalfont}%
+    },
+}
+\pgfkeys{
+  /moloch/titleformat/.code=\pgfkeysalso{
+    font/titleformat title=#1,
+    font/titleformat subtitle=#1,
+    font/titleformat section=#1,
+    font/titleformat frame=#1,
+    titleformat plain=#1,
+  }
+}
+\newcommand{\moloch@setdefaults}{
+  \pgfkeys{/moloch/.cd,
+    titleformat plain=regular,
+  }
+}
+\useinnertheme{moloch}
+\useoutertheme{moloch}
+\usecolortheme{moloch}
+\usefonttheme{moloch}
+\newcommand{\molochset}[1]{\pgfkeys{/moloch/.cd,#1}}
+\newcommand{\mreducelistspacing}{%
+  \PackageWarning{beamerthememoloch}{%
+    \string\mreducelistspacing\space is deprecated and will be removed in a future version}%
+  \vspace{-\topsep}%
+}
+\moloch@setdefaults
+\ProcessPgfOptions{/moloch}
