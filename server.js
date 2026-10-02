@@ -24,8 +24,9 @@ const RESUME = {
   answered: 'The user answered your questions: read input/answers.md and continue building; do not ask again.',
   skipped: "The user skipped the questions: continue with what you have, leave out what you can't source; do not ask again.",
 };
-// theme -> the formats it supports; custom (a .pptx template) is slides only and needs the job's template
-const THEMES = { paper: ['report', 'slides'], midnight: ['report', 'slides'], metropolis: ['slides'], moloch: ['slides'], focus: ['slides'], trigon: ['slides'], madrid: ['slides'], custom: ['slides'] };
+// theme -> the formats it supports. Every report is a standard LaTeX article; the rest are slide themes,
+// and custom (a .pptx template) needs the job's template. Older report jobs may still say paper/midnight
+const THEMES = { article: ['report'], paper: ['slides'], midnight: ['slides'], metropolis: ['slides'], moloch: ['slides'], focus: ['slides'], trigon: ['slides'], madrid: ['slides'], custom: ['slides'] };
 const COMPILE_TIMEOUT = 60000;
 const jobs = new Map(); // id -> { events: [], from, clients: Set, finished }; a revision replays events from `from`
 let busy = null; // ponytail: one job at a time (429 otherwise); add a queue if several users share a server
@@ -166,7 +167,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
     let buf = '', stderr = '', resultText = '', cost, note = '', sessionId;
     // the latest assistant text is held until the next step, so the last one (the summary) can be shown in full
-    const flush = (max = 140) => { if (note) step(id, 'note', note.length > max ? note.slice(0, max - 3) + '…' : note); note = ''; };
+    const flush = (max = 140, icon = 'note') => { if (note) step(id, icon, note.length > max ? note.slice(0, max - 3) + '…' : note); note = ''; };
     const clean = (t) => String(t || '').trim().replace(/\*\*|`/g, '').replace(/\s+/g, ' ');
     child.stdout.on('data', (d) => {
       buf += d;
@@ -190,7 +191,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
             step(id, 'error', pending.get(c.tool_use_id) === 'compile' ? 'Compile error, fixing' : 'A step failed, retrying');
           }
         }
-        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; note = clean(resultText) || note; flush(600); }
+        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; note = clean(resultText) || note; flush(600, 'final'); } // the feed shows only this one
       }
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
@@ -212,7 +213,7 @@ const doneData = (id, j) => ({ pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/
 function themeError(theme, j) {
   if (typeof theme !== 'string' || !Object.hasOwn(THEMES, theme)) return 'Unknown theme';
   if (theme === 'custom' && !j.template) return 'This job has no PowerPoint template';
-  if (!THEMES[theme].includes(j.kind)) return `${theme[0].toUpperCase() + theme.slice(1)} is a slides theme; reports come in Paper or Midnight`;
+  if (!THEMES[theme].includes(j.kind)) return j.kind === 'report' ? 'Reports use a standard LaTeX article layout; themes are for slides' : 'The article layout is for reports';
   return null;
 }
 // main.tex only says \input{theme.tex}; this one line picks the theme
@@ -290,7 +291,7 @@ async function build(id, jobDir, j, resumeLine) {
   }
   await fsp.rm(qf, { force: true });
   await setStatus(jobDir, 'done', { sessionId });
-  emit(id, 'done', { ...doneData(id, j), cost: cost + (j.askCost || 0) || cost });
+  emit(id, 'done', doneData(id, j));
 }
 
 // unzip, clone into inputDir/repo, drop symlinks, run collect.js; returns facts.json (or null if unreadable)
@@ -439,7 +440,7 @@ async function revise(id, jobDir, n, j, { general, pages }, added) {
     const stale = !fs.existsSync(pdf) || (texChanged && (await fsp.stat(pdf)).mtimeMs < started);
     if (code !== 0 || stale) throw new Error(`The revision didn't compile (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
     await setStatus(jobDir, 'done', { revisions: n });
-    emit(id, 'done', { ...doneData(id, { ...j, revisions: n }), cost });
+    emit(id, 'done', doneData(id, { ...j, revisions: n }));
   } catch (e) {
     // put the last good version back so the job stays usable
     await fsp.copyFile(backTex, tex).catch(() => {});
@@ -496,6 +497,7 @@ async function switchTheme(req, res, id) {
   let j; try { j = JSON.parse(await fsp.readFile(path.join(jobDir, 'job.json'), 'utf8')); } catch { return json(res, 404, { error: 'No such job' }); }
   if (busy === id || switching.has(id) || j.status !== 'done' || !fs.existsSync(pdf) || !fs.existsSync(tex))
     return json(res, 409, { error: 'The theme can only change on a finished PDF that is not being revised' });
+  if (j.kind === 'report') return json(res, 400, { error: 'Reports use a standard LaTeX article layout; themes are for slides' });
   let theme;
   try { theme = JSON.parse(await readBody(req, 1024, 'Body is too long')).theme; } catch (e) { return json(res, e.status || 400, { error: e.status ? e.message : 'Body must be JSON' }); }
   const bad = themeError(theme, j);
@@ -569,7 +571,7 @@ async function createJob(req, res) {
     // a .pptx template only applies to slides; for a report it's ignored
     const pptx = kind === 'slides' && fields.theme === 'custom' ? files.find((f) => f.name === 'template') : null;
     if (pptx && !/\.pptx$/i.test(pptx.filename)) throw new Error('The template must be a .pptx file');
-    const theme = pptx ? 'custom' : fields.theme && fields.theme !== 'custom' ? fields.theme : 'paper';
+    const theme = kind === 'report' ? 'article' : pptx ? 'custom' : fields.theme && fields.theme !== 'custom' ? fields.theme : 'paper';
     const bad = themeError(theme, { kind, template: !!pptx });
     if (bad) throw new Error(bad);
     const repoUrl = normalizeRepoUrl(fields.repoUrl);
@@ -638,7 +640,7 @@ const server = http.createServer((req, res) => {
   const p = url.pathname;
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(ROOT, 'index.html'), 'text/html; charset=utf-8');
   if (req.method === 'POST' && p === '/api/jobs') return createJob(req, res);
-  const pv = /^\/previews\/([a-z]+)((?:-report)?(?:\.png|-[1-4]\.jpg))$/.exec(p); // theme thumbnails (.png) and preview pages (-N.jpg) for the pickers
+  const pv = /^\/previews\/([a-z]+)(\.png|-[1-4]\.jpg)$/.exec(p); // theme thumbnails (.png) and preview pages (-N.jpg) for the pickers
   if (req.method === 'GET' && pv && Object.hasOwn(THEMES, pv[1])) return serveFile(res, path.join(ROOT, '.claude/skills/devreport/themes/previews', pv[1] + pv[2]), pv[2].endsWith('.png') ? 'image/png' : 'image/jpeg', 'max-age=3600');
   const r = /^\/api\/jobs\/([^/]+)\/(revise|answers|theme)$/.exec(p);
   if (req.method === 'POST' && r) return !ID_RE.test(r[1]) ? json(res, 400, { error: 'Bad job id' }) : { revise: reviseJob, answers: answerJob, theme: switchTheme }[r[2]](req, res, r[1]);

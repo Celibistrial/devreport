@@ -31,9 +31,6 @@ header{border-bottom:1px solid var(--ink);}
 .logo b{font-style:normal;font-weight:400}
 .logo i{color:var(--accent)}
 .tag{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.pipeline{display:flex;gap:8px;align-items:center;font:11px/1 var(--mono);color:var(--ink2);flex-wrap:wrap}
-.pipeline span{border:1px solid var(--rule);padding:5px 8px;border-radius:99px;background:var(--card)}
-.pipeline em{font-style:normal;color:var(--muted)}
 .hero{display:grid;grid-template-columns:1fr auto;gap:28px;align-items:end;padding:44px 0 34px}
 h1{font:400 clamp(40px,6vw,76px)/.95 var(--serif);letter-spacing:-.02em;margin:0;max-width:13ch}
 h1 i{color:var(--accent)}
@@ -100,9 +97,8 @@ body[data-stage=result] .wrap{max-width:1720px}
 .thumb{position:relative;display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;margin-bottom:7px;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 .seg.th{grid-template-columns:repeat(4,1fr);gap:8px}
-/* in report mode slides-only themes stay visible but dimmed; picking one switches the format to Slides */
-#f[data-kind=report] .theme[data-kinds=slides] .face{opacity:.55}
-#f[data-kind=report] .theme[data-kinds=slides] small::after{content:' · slides only'}
+/* themes are for slides; a report is always a standard LaTeX article */
+#f[data-kind=report] #themes,#f[data-kind=report] #thlede,#f:not([data-kind=report]) #artnote{display:none}
 .sw.u{aspect-ratio:16/9;border-radius:6px;margin-bottom:7px;background:var(--paper);border:1.5px dashed #c4b8a2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px;font:10px/1.2 var(--mono);color:var(--muted);text-align:center;overflow:hidden}
 .sw.u .ic{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
 .sw.u .fn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -117,19 +113,13 @@ body[data-stage=result] .wrap{max-width:1720px}
 .tcell{position:relative;flex:none}
 .tcell .eye{top:7px;left:7px;width:20px;height:20px;border-radius:5px}
 .tpop{position:fixed;inset:auto;margin:0;padding:0;z-index:50;width:440px;max-width:calc(100vw - 16px);border:1px solid var(--ink);border-radius:14px;background:var(--card);color:var(--ink);box-shadow:8px 8px 0 rgba(22,19,15,.08),0 18px 40px -18px rgba(22,19,15,.3);animation:pop .15s ease}
-.tpop.portrait{width:330px}
 .tpop:modal{inset:0;margin:auto;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto}
-.tpop.portrait:modal{width:min(380px,calc(100vw - 32px))}
 .tpop::backdrop{background:rgba(22,19,15,.45);backdrop-filter:blur(2px)}
 .tpin{padding:10px 10px 14px}
 .tpbig{aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.08)}
-.portrait .tpbig{aspect-ratio:1/1.414}
-.tpop.portrait:modal .tpbig{width:min(100%,calc(62dvh / 1.414));margin:0 auto}
 .tpbig img{display:block;width:100%;height:100%;object-fit:contain}
 .tpth{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 12px}
 .tpth button{aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px rgba(22,19,15,.12);opacity:.55;cursor:pointer;transition:.15s}
-.portrait .tpth{grid-template-columns:repeat(6,1fr)}
-.portrait .tpth button{aspect-ratio:1/1.414}
 .tpth button:hover,.tpth button[aria-current=true]{opacity:1}
 .tpth button[aria-current=true]{box-shadow:0 0 0 1.5px var(--ink)}
 .tpth button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -215,6 +205,10 @@ body:not([data-state=done]) #again{display:none}
 .feed li time{font:11px/26px var(--mono);color:var(--muted);text-align:right}
 .feed li .i{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font:15px/1 var(--sans);background:var(--rule2);color:var(--ink2)}
 .feed li .x{padding-top:3px;font-size:14px;line-height:1.45;word-break:break-word}
+.feed li .x .d{color:var(--muted)}
+.feed li.k-final .x{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.v-feed > .raw{flex:none}
+details.raw .feed{max-height:min(34dvh,300px);overflow-y:auto}
 .feed li.note .x{color:var(--ink2);font-family:var(--serif);font-style:italic;font-size:16.5px;line-height:1.3;padding-top:2px}
 .feed li.k-write .i,.feed li.k-edit .i{background:#ffe9df;color:var(--accent-ink)}
 .feed li.k-think .i{background:#f3ecfb;color:#6a3fb5}
@@ -230,7 +224,7 @@ body:not([data-state=done]) #again{display:none}
 .feed li.k-collect .i{background:#e1efe6;color:var(--ok)}
 .feed li.k-template .i{background:#fff1d6;color:var(--warn)}
 .feed li.k-revise .i{background:var(--accent);color:#fff}
-.feed li.k-ask .i{background:#fff1d6;color:var(--warn);font-weight:600}
+.feed li.k-ask .i,.feed li.k-questions .i{background:#fff1d6;color:var(--warn);font-weight:600}
 .feed li.k-answer .i{background:#e4ecf7;color:#2c5d9b}
 .feed li.k-clone .i,.feed li.k-zip .i,.feed li.k-upload .i{background:#e4ecf7;color:#2c5d9b}
 .feed li.k-done .i{background:var(--ok);color:#fff}
@@ -315,6 +309,13 @@ details.log[open] summary::before{transform:rotate(90deg)}
 .pvt[aria-current=true] > button:first-child{box-shadow:0 0 0 1.5px var(--ink)}
 .pvt > button:first-child:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pvt canvas{display:block;width:100%;height:100%;animation:fade .14s ease both}
+@keyframes fade{from{opacity:0}}
+/* a theme switch or revision crossfades: the old page fades out with a slight blur and scale over the new one */
+.pvpage canvas.out{position:absolute;inset:0;z-index:1;animation:xout .35s ease-out forwards;pointer-events:none}
+@keyframes xout{to{opacity:0;filter:blur(3px);transform:scale(.985)}}
+.pvpage canvas.xin{animation:fade .35s ease-out both}
+.pvt canvas.xin{animation:fade .25s ease-out both}
+@media (prefers-reduced-motion:reduce){.pvpage canvas.out{display:none}.pvpage canvas,.pvt canvas{animation:none!important}}
 .pvt .n{position:absolute;left:3px;bottom:3px;font:500 9.5px/1 var(--mono);background:rgba(251,248,242,.92);color:var(--ink2);border-radius:3px;padding:2px 4px}
 .pvt .c{position:absolute;top:3px;right:3px;width:20px;height:20px;padding:0;display:grid;place-items:center;border:1px solid var(--ink);border-radius:5px;background:var(--card);color:var(--ink);cursor:pointer;opacity:0;transition:.15s}
 .pvt:hover .c,.pvt .c:focus-visible{opacity:1}
@@ -327,12 +328,21 @@ details.log[open] summary::before{transform:rotate(90deg)}
 .pv[data-mode=slides] .pvstage:fullscreen{background:#000;padding:0;max-height:none;aspect-ratio:auto}
 .pvstage:fullscreen .pvone{box-shadow:none;border-radius:0}
 .pvstage:fullscreen .pvnote{display:none}
-.veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,19,15,.45);backdrop-filter:blur(2px);color:var(--paper);font:italic 22px/1.2 var(--serif);text-align:center;animation:fade .15s ease both}
-.veil[hidden]{display:none}
-.veil small{display:block;font:12px var(--mono);font-style:normal;opacity:.75;margin-top:6px}
-@keyframes fade{from{opacity:0}}
+/* background work (a revision or a theme switch): the PDF stays up and usable, a thin bar runs along the viewer's top edge */
+[data-bg] .pdfwrap::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;z-index:3;pointer-events:none;background:linear-gradient(90deg,transparent,var(--accent),transparent) no-repeat;background-size:40% 100%;animation:bar 1.3s linear infinite}
+@keyframes bar{from{background-position:-60% 0}to{background-position:160% 0}}
+[data-bg] .pvstage canvas{opacity:.88;transition:opacity .2s}
+.rstat{display:none;align-items:center;gap:8px;flex:1 1 180px;min-height:34px;font:12px/1.35 var(--mono);color:var(--ink2)}
+[data-bg=rev] .rstat{display:flex}
+[data-bg=rev] #reverr,[data-bg=rev] #revgo{display:none}
+.spin{flex:none;width:12px;height:12px;border:2px solid var(--rule);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){[data-bg] .pdfwrap::after{animation:none;background-size:100% 100%;opacity:.5}.spin{animation-duration:2.4s}}
+.toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4;padding:7px 12px;border-radius:99px;background:var(--ink);color:var(--paper);font:12px var(--mono);box-shadow:0 6px 18px -8px rgba(22,19,15,.5);animation:pop .15s ease both;pointer-events:none}
+.toast[hidden]{display:none}
 /* theme strip: re-typeset the finished PDF in another theme, no Claude involved */
 .tstrip{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:thin;background:var(--card);scroll-snap-type:x proximity;scroll-padding:0 14px}
+.tstrip[hidden]{display:none}
 .tcell{scroll-snap-align:start}
 @media (min-width:1024px){.tstrip{flex-wrap:wrap;overflow:visible;padding:12px 16px 14px}.side .tstrip .rlab{flex-basis:100%;margin:0 0 2px}.tstrip .tchip{width:69px}}
 .tstrip .rlab{margin:0 4px 0 0;flex:none}
@@ -344,7 +354,7 @@ details.log[open] summary::before{transform:rotate(90deg)}
 .tchip[aria-pressed=true]::after{content:"✓";position:absolute;top:6px;right:6px;width:14px;height:14px;border-radius:50%;background:var(--ink);color:var(--paper);font:9px/14px var(--sans);text-align:center;box-shadow:0 0 0 1.5px #fff}
 .tchip:disabled{cursor:wait}
 .tchip:disabled:not(.loading){opacity:.5}
-.tchip.loading .thumb{animation:blink 1s infinite}
+.tchip.loading .thumb::after{content:"";position:absolute;right:4px;bottom:4px;width:12px;height:12px;border:2px solid rgba(255,255,255,.75);border-top-color:var(--accent);border-radius:50%;box-shadow:0 0 0 1px rgba(22,19,15,.15);animation:spin .8s linear infinite}
 .tchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tmsg{flex:none;margin-left:2px;font:11px/1.3 var(--mono);color:var(--ok);white-space:nowrap}
 .tmsg.err{white-space:normal;width:24ch}
@@ -425,7 +435,6 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 }
 @media (max-width:600px){
   .wrap{padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
-  .pipeline{display:none}
   .bar{padding:14px 0 12px}
   .logo{font-size:26px}
   h1{font-size:44px}
@@ -497,7 +506,6 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   <div class="wrap">
     <div class="bar">
       <div class="logo"><b>dev</b><i>report</i> <span class="tag">v0.1 · local</span></div>
-      <div class="pipeline"><span>your files</span><em>→</em><span>collect.js</span><em>→</em><span>CSV</span><em>→</em><span>Agent</span><em>→</em><span>LaTeX</span><em>→</em><span>PDF</span></div>
     </div>
   </div>
 </header>
@@ -550,10 +558,11 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
     <div class="col">
     <section class="sec">
-      <h2><small>03</small>Theme</h2>
+      <h2><small>03</small><span id="thhead">Theme</span></h2>
       <p class="thlede" id="thlede">Each card is page one of a real deck in that theme. You can switch themes after it's built.</p>
+      <p class="thlede" id="artnote">Reports use a standard LaTeX article layout.</p>
       <div class="seg th" id="themes">
-        <label class="opt-card theme" id="tplcard" data-kinds="slides"><input type="radio" name="theme" value="custom"><span class="face">
+        <label class="opt-card theme" id="tplcard"><input type="radio" name="theme" value="custom"><span class="face">
           <span class="sw u" id="tplsw"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg></span><span class="fn" id="tplname">choose .pptx</span></span>
           <b>Your template</b><small>.pptx colours, fonts, logo</small></span></label>
         <input type="file" id="tpl" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
@@ -569,6 +578,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
     <div class="pbody">
       <div class="view v-feed">
         <ol class="feed" id="feed"></ol>
+        <details class="log raw" id="rawlog"><summary id="rawsum">Show details</summary><ol class="feed" id="raw"></ol></details>
         <form class="ask" id="ask" hidden novalidate aria-label="Questions from devreport">
           <div class="rhead"><h3>devreport needs a bit <i>more context</i></h3></div>
           <p class="asklede">It read your files and couldn't find these. Answer what you can, or skip and it will leave those parts out instead of guessing.</p>
@@ -590,14 +600,14 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
             </div>
             <span class="pvcount" id="pvcount"></span>
           </div>
-          <iframe id="pdf" title="Generated PDF" hidden></iframe><div class="veil" id="veil" hidden></div></div>
+          <iframe id="pdf" title="Generated PDF" hidden></iframe><div class="toast" id="toast" role="status" hidden></div></div>
         <div class="side">
           <div class="dbar"><span class="msg"><span class="ver" id="ver">v1</span><span id="donemsg">Typeset.</span></span>
             <a class="btn solid" id="dlpdf" download>Download PDF</a>
             <a class="btn" id="dltex" download>Download .tex</a>
             <button type="button" class="btn" id="revopen" aria-expanded="false" aria-controls="rev">Request changes</button>
           </div>
-          <div class="tstrip" id="tstrip" role="group" aria-label="Theme"><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
+          <div class="tstrip" id="tstrip" role="group" aria-label="Theme" hidden><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
           <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
             <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
             <label class="rlab" for="revgen" id="revlab">Whole deck</label>
@@ -615,7 +625,8 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
               <textarea id="addnotes" maxlength="20000" placeholder="We later got 40 users; here's the signup CSV"></textarea>
             </details>
             <div class="rfoot"><p class="hint" id="reverr" role="alert">The agent edits the existing LaTeX. It won't add facts your files don't have.</p>
-              <button type="submit" class="btn solid" id="revgo">Apply changes</button></div>
+              <button type="submit" class="btn solid" id="revgo">Apply changes</button>
+              <p class="rstat" id="rstat" role="status"><span class="spin" aria-hidden="true"></span><span id="rstattext"></span></p></div>
           </form>
           <details class="log" id="log"><summary id="logsum">Build log</summary></details>
         </div>
@@ -628,7 +639,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 <dialog class="tpop" id="tpop" aria-labelledby="tpname" aria-describedby="tpdesc"><div class="tpin">
   <div class="tpbig"><img id="tpimg" alt=""></div>
   <div class="tpth" id="tpth"></div>
-  <div class="tpmeta"><h3 id="tpname"></h3><span class="tag" id="tpkinds"></span><button type="button" class="tpx" id="tpx" aria-label="Close preview" autofocus>×</button></div>
+  <div class="tpmeta"><h3 id="tpname"></h3><button type="button" class="tpx" id="tpx" aria-label="Close preview" autofocus>×</button></div>
   <p id="tpdesc"></p>
   <p class="tpcred" id="tpcred"></p>
 </div></dialog>
@@ -660,11 +671,13 @@ const ICON = {
   compile: '<path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91"/>',
   humanize: '<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/>',
   plan: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  questions: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   ask: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   answer: '<path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
   revise: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   blocked: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   error: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  final: '<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 0-1 1.03V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>',
   note: '<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 0-1 1.03V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>',
   done: '<path d="M20 6 9 17l-5-5"/>',
   failed: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
@@ -672,19 +685,19 @@ const ICON = {
 const iconSvg = (k) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k] || '<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>'}</svg>`;
 let tplFile = null, files = [], es = null, t0 = 0, tick = null, jobId = null, last = null;
 
-// themes: id, name, a few words, formats, a line for the preview, credit. Slides-only themes are Beamer themes on the shared dr* macros
+// slide themes: id, name, a few words, a line for the preview, credit. Reports have no theme: always a standard LaTeX article
 const THEMES = [
-  ['paper', 'Paper', 'Serif, cream, academic', 'report slides', 'Palatino on cream paper, oxblood accents and old-style numerals.', 'devreport original'],
-  ['midnight', 'Midnight', 'Dark, neon, terminal', 'report slides', 'A dark terminal look: mono labels, neon green charts.', 'devreport original'],
-  ['metropolis', 'Metropolis', 'Flat, Fira, orange rule', 'slides', 'Flat and quiet: Fira Sans, dark title bars, an orange progress rule.', 'Metropolis · 6.9k★ on GitHub'],
-  ['moloch', 'Moloch', 'Metropolis fork, dark teal', 'slides', 'The maintained Metropolis fork, here in its dark teal variant.', 'Moloch · 265★ on GitHub'],
-  ['focus', 'Focus', 'Bold navy title bars', 'slides', 'Bold navy bars and small-caps titles on a light grey page.', 'Focus · 545★ on GitHub'],
-  ['trigon', 'Trigon', 'Geometric triangles', 'slides', 'Teal and grey triangles framing the title and every slide.', 'Trigon · on CTAN'],
-  ['madrid', 'Madrid', 'Classic Beamer blue', 'slides', 'Beamer\'s classic: a blue title box and a three-part footer.', 'Madrid · built into Beamer'],
-].map(([id, name, note, kinds, desc, credit]) => ({ id, name, note, kinds, desc, credit }));
+  ['paper', 'Paper', 'Serif, cream, academic', 'Palatino on cream paper, oxblood accents and old-style numerals.', 'devreport original'],
+  ['midnight', 'Midnight', 'Dark, neon, terminal', 'A dark terminal look: mono labels, neon green charts.', 'devreport original'],
+  ['metropolis', 'Metropolis', 'Flat, Fira, orange rule', 'Flat and quiet: Fira Sans, dark title bars, an orange progress rule.', 'Metropolis · 6.9k★ on GitHub'],
+  ['moloch', 'Moloch', 'Metropolis fork, dark teal', 'The maintained Metropolis fork, here in its dark teal variant.', 'Moloch · 265★ on GitHub'],
+  ['focus', 'Focus', 'Bold navy title bars', 'Bold navy bars and small-caps titles on a light grey page.', 'Focus · 545★ on GitHub'],
+  ['trigon', 'Trigon', 'Geometric triangles', 'Teal and grey triangles framing the title and every slide.', 'Trigon · on CTAN'],
+  ['madrid', 'Madrid', 'Classic Beamer blue', 'Beamer\'s classic: a blue title box and a three-part footer.', 'Madrid · built into Beamer'],
+].map(([id, name, note, desc, credit]) => ({ id, name, note, desc, credit }));
 const eye = (t) => `<button type="button" class="eye" aria-label="Preview ${esc(t.name)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
-const preview = (t, kind) => `/previews/${t.id}${kind === 'report' && t.kinds.includes('report') ? '-report' : ''}.png`;
-const themeName = (id) => THEMES.find((t) => t.id === id)?.name || 'Your template';
+const preview = (t) => `/previews/${t.id}.png`;
+const themeName = (id) => id === 'article' ? 'Article' : THEMES.find((t) => t.id === id)?.name || 'Your template';
 const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
@@ -718,16 +731,13 @@ $('#repo').addEventListener('input', () => {
   $('#urlhint').textContent = bad ? 'That should look like owner/repo.' : 'Public repos only. Full history is cloned so commits can be charted.';
 });
 // theme cards, built from THEMES, in front of the "Your template" card
-$('#tplcard').insertAdjacentHTML('beforebegin', THEMES.map((t, i) => `<label class="opt-card theme" data-kinds="${t.kinds}" data-pv="${t.id}"><input type="radio" name="theme" value="${t.id}"${i ? '' : ' checked'}><span class="face">
-  <span class="thumb"><img src="${preview(t, 'report')}" alt="" loading="lazy" data-t="${t.id}">${eye(t)}</span><b>${t.name}</b><small>${t.note}</small></span></label>`).join(''));
-// a report only gets the themes that have an article layout; previews follow the format
+$('#tplcard').insertAdjacentHTML('beforebegin', THEMES.map((t, i) => `<label class="opt-card theme" data-pv="${t.id}"><input type="radio" name="theme" value="${t.id}"${i ? '' : ' checked'}><span class="face">
+  <span class="thumb"><img src="${preview(t)}" alt="" loading="lazy">${eye(t)}</span><b>${t.name}</b><small>${t.note}</small></span></label>`).join(''));
+// themes show for slides only (CSS on data-kind); a report gets one line instead
 function setKind(kind) {
   form.dataset.kind = kind;
   $('#golabel').textContent = kind === 'slides' ? 'Generate slides' : 'Generate report';
-  form.querySelectorAll('.thumb img[data-t]').forEach((img) => { img.src = preview(THEMES.find((t) => t.id === img.dataset.t), kind); });
-  const sel = form.querySelector('[name=theme]:checked');
-  if (kind === 'report' && sel.value !== 'custom' && !THEMES.find((t) => t.id === sel.value).kinds.includes('report')) form.querySelector('[name=theme][value=paper]').checked = true;
-  $('#thlede').textContent = kind === 'slides' ? 'Each card is page one of a real deck in that theme. You can switch themes after it\'s built.' : 'Reports come in Paper or Midnight. Picking a slides-only theme switches the format to Slides. You can switch themes after it\'s built.';
+  $('#thhead').textContent = kind === 'slides' ? 'Theme' : 'Layout';
 }
 // "Your template" card: picking it opens the file picker; a template means slides
 const tplIn = $('#tpl'), checked = (n) => form.querySelector(`[name=${n}]:checked`).value;
@@ -744,7 +754,6 @@ tplIn.onchange = () => {
   if (!/\.pptx$/i.test(f.name)) { $('#formerr').textContent = 'The template has to be a .pptx file.'; return tplBack(); }
   tplFile = f; $('#tplname').textContent = f.name; $('#tplname').title = f.name; $('#tplsw').classList.add('has'); $('#formerr').textContent = '';
   tplRadio.checked = true;
-  form.querySelector('[name=kind][value=slides]').checked = true; setKind('slides'); setLen();
 };
 // length: one slider + stepper whose range and unit follow the format; each format keeps its own value
 const LEN = { report: { min: 2, max: 10, v: 4, unit: 'pages' }, slides: { min: 5, max: 25, v: 10, unit: 'slides' } }, lenr = $('#lenr');
@@ -762,9 +771,6 @@ lenr.addEventListener('input', () => setLen(lenr.value));
 document.querySelectorAll('.step button').forEach((b) => { b.onclick = () => setLen(LEN[checked('kind')].v + +b.dataset.d); });
 form.addEventListener('change', (e) => {
   if (e.target.name === 'kind') { setKind(e.target.value); setLen(); }
-  if (e.target.name === 'theme' && checked('kind') === 'report' && e.target.value !== 'custom' && !THEMES.find((t) => t.id === e.target.value).kinds.includes('report')) {
-    form.querySelector('[name=kind][value=slides]').checked = true; setKind('slides'); setLen();
-  }
 });
 setKind(checked('kind')); setLen();
 document.addEventListener('keydown', (e) => {
@@ -779,19 +785,51 @@ function setState(s, pill) {
   if (B.dataset.stage !== stage) { B.dataset.stage = stage; if (stage !== 'input') scrollTo({ top: 0 }); }
   B.dataset.state = s; $('#pill').textContent = pill;
   // the feed lives in the work view; once done it folds into the "build log" disclosure
-  if (s === 'done') { $('#log').append(feed); const n = feed.children.length, took = feed.lastElementChild?.querySelector('time').textContent; $('#logsum').textContent = `Show build log (${n} step${n === 1 ? '' : 's'}${took && took !== '00:00' ? ', ' + took : ''})`; }
-  else if (feed.parentNode.id === 'log') $('.v-feed').prepend(feed);
+  if (s === 'done') { $('#log').append(feed, $('#rawlog')); const n = feed.children.length, took = feed.lastElementChild?.querySelector('time').textContent; $('#logsum').textContent = `Show build log (${n} step${n === 1 ? '' : 's'}${took && took !== '00:00' ? ', ' + took : ''})`; }
+  else if (feed.parentNode.id === 'log') $('.v-feed').prepend(feed, $('#rawlog'));
   const busy = s === 'uploading' || s === 'running', locked = busy || s === 'waiting';
   form.classList.toggle('locked', locked); $('#go').disabled = locked;
   if (!busy) { clearInterval(tick); tick = null; }
 }
+// feed: the server sends one raw step per action; the list shows one line per phase, updated in place, and the
+// raw steps sit under "Show details". Built only from the event order, so a replay rebuilds the same list
+const RANK = { upload: 0, zip: 1, clone: 1, collect: 2, template: 3, read: 4, write: 5, compile: 6, humanize: 7, review: 8 };
+const PHASE = { think: 'read', skill: 'read', doc: 'read', data: 'read', code: 'read', image: 'read', search: 'read', tex: 'read', edit: 'write', theme: 'write', plan: 'write' };
+const MILESTONE = new Set(['revise', 'answer', 'questions', 'final', 'done', 'failed']); // always a line of their own
+let ph = null, feedKind = ''; // ph: the phase line being updated {key, li, n, err, extra, text}
+const phLabel = (k) => ({ upload: feed.querySelector('.k-revise') ? 'Adding material' : 'Uploading', zip: 'Unpacking', clone: 'Cloning', collect: 'Analysing your files',
+  template: 'Reading your template', read: 'Reading your project', write: `Writing the ${feedKind || 'document'}`, compile: 'Compiling', humanize: 'Polishing the prose', review: 'Checking the result' }[k]);
+function phDetail(p) {
+  const d = { upload: p.text.replace(/^Received /, ''), zip: p.text.replace(/^Unpacking /, ''), clone: p.text.replace(/^Cloning /, ''), collect: p.text, template: p.text,
+    read: p.n ? `${p.n} file${p.n === 1 ? '' : 's'}` : '', write: p.n > 1 ? `${p.n} edits` : '', compile: p.n > 1 ? `attempt ${p.n}` : '' }[p.key];
+  return [d, p.err ? 'fixing a LaTeX error' : p.extra].filter(Boolean).join(', ');
+}
+const paintPh = (p) => { const d = phDetail(p); p.li.querySelector('.x').innerHTML = `${esc(phLabel(p.key))}${d ? `<span class="d"> · ${esc(d)}</span>` : ''}`; };
+function rawStep(icon, text, t) {
+  const li = document.createElement('li'); li.className = `k-${icon}`;
+  li.innerHTML = `<time>${mmss(t - t0)}</time><span class="i">${iconSvg(icon)}</span><span class="x">${esc(text)}</span>`;
+  $('#raw').appendChild(li); $('#rawsum').textContent = `Show details (${$('#raw').children.length} steps)`;
+}
 function addStep(icon, text, t = Date.now()) {
+  rawStep(icon, text, t);
+  const m = /\((report|slides),/.exec(text); if (icon === 'think' && m) feedKind = m[1];
+  if (icon === 'error') { if (ph && /compile/i.test(text)) { ph.err = true; paintPh(ph); } return; } // other errors and the blocked/chatter steps stay in the details
+  const k = PHASE[icon] || icon;
+  if (!MILESTONE.has(k) && !(k in RANK)) return;
+  if (ph && !MILESTONE.has(k) && RANK[k] <= RANK[ph.key]) { // this phase again, or an earlier one after a later one began: update the line
+    if (k === ph.key) { if (icon !== 'think') ph.n++; if (k !== 'zip' && k !== 'clone') ph.text = text; ph.err = false; ph.extra = ''; }
+    else ph.extra = k === 'compile' ? 'recompiling' : k === 'write' ? 'editing' : ph.extra;
+    return paintPh(ph);
+  }
   feed.querySelector('li.live')?.classList.remove('live');
   const li = document.createElement('li');
-  li.className = `k-${icon}${icon === 'note' ? ' note' : ''}${icon === 'done' || icon === 'failed' ? '' : ' live'}`;
-  li.innerHTML = `<time>${mmss(t - t0)}</time><span class="i">${iconSvg(icon)}</span><span class="x">${esc(text)}</span>`;
+  li.className = `k-${icon}${icon === 'final' ? ' note' : ''}${MILESTONE.has(k) ? '' : ' live'}`;
+  li.innerHTML = `<time>${mmss(t - t0)}</time><span class="i">${iconSvg(icon)}</span><span class="x"${icon === 'final' ? ` title="${esc(text)}"` : ''}>${esc(text)}</span>`;
   feed.appendChild(li); feed.scrollTop = feed.scrollHeight;
+  ph = MILESTONE.has(k) ? null : { key: k, li, n: icon === 'think' ? 0 : 1, err: false, extra: '', text };
+  if (ph) paintPh(ph);
 }
+const clearFeed = () => { feed.innerHTML = ''; $('#raw').innerHTML = ''; $('#rawsum').textContent = 'Show details'; ph = null; };
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -800,18 +838,18 @@ form.addEventListener('submit', (e) => {
   const fd = new FormData();
   files.forEach((f) => fd.append('files[]', f, f.name));
   if (url) fd.append('repoUrl', url);
-  for (const k of ['kind', 'theme']) fd.append(k, checked(k));
-  if (checked('theme') === 'custom') {
+  const kind = checked('kind'), theme = kind === 'slides' ? checked('theme') : 'article';
+  fd.append('kind', kind); fd.append('theme', theme);
+  if (theme === 'custom') {
     if (!tplFile) { $('#formerr').textContent = 'Choose a .pptx template, or pick one of the themes.'; return; }
-    if (checked('kind') !== 'slides') { $('#formerr').textContent = 'PowerPoint templates are for slides. Switch the format to Slides.'; return; }
     fd.append('template', tplFile, tplFile.name);
   }
   fd.append('length', lenr.value);
 
-  feed.innerHTML = ''; $('#formerr').textContent = ''; $('#jobid').textContent = '';
+  clearFeed(); feedKind = kind; $('#formerr').textContent = ''; $('#jobid').textContent = '';
   t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
   setState('uploading', 'Uploading');
-  setSum(files.length ? files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') : url.replace('https://', ''), checked('kind'), lenr.value, checked('theme'));
+  setSum(files.length ? files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') : url.replace('https://', ''), kind, lenr.value, theme);
 
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/jobs');
@@ -838,7 +876,7 @@ function listen(id, shown = 0, retries = 0) {
     retries = 0;
     if (!ask.hidden) return; // a reconnect replays it; keep what was typed
     const d = JSON.parse(e.data); t0 ||= d.t;
-    addStep('ask', `Needs ${d.questions.length === 1 ? 'one answer' : d.questions.length + ' answers'} before it writes`, d.t);
+    addStep('questions', `Needs ${d.questions.length === 1 ? 'one answer' : d.questions.length + ' answers'} before it writes`, d.t);
     feed.querySelector('li.live')?.classList.remove('live');
     $('#qs').innerHTML = d.questions.map((q, i) => `<label class="aq"><span class="qn">Q${i + 1}</span><span class="qt">${esc(q.question)}</span><small>${esc(q.why)}</small><textarea name="${esc(q.id)}" maxlength="2000" placeholder="A sentence or two is plenty"></textarea></label>`).join('');
     $('#clock').textContent = mmss(d.t - t0);
@@ -849,9 +887,14 @@ function listen(id, shown = 0, retries = 0) {
     const d = JSON.parse(e.data); es.close(); t0 ||= d.t;
     if (sum.src?.startsWith('#')) setSum('#' + id, d.kind, '', d.theme); // reattached: the form doesn't know this job's inputs
     addStep('done', d.version > 1 ? `v${d.version} ready` : 'PDF ready', d.t);
+    if (revising()) { // swap the new PDF in on the same page
+      revBusy(false); revClear(); revHint(); $('#revgo').textContent = 'Apply changes';
+      V.fade = true; showDone(d); toast(`Updated to v${d.version}`); $('#donemsg').textContent = `Revised in ${mmss(d.t - t0)}.`;
+      return;
+    }
     setTimeout(() => {
       showDone(d);
-      $('#donemsg').textContent = `${d.version > 1 ? 'Revised' : 'Typeset'}${d.t > t0 ? ` in ${mmss(d.t - t0)}` : ''}${d.cost ? ` · $${d.cost.toFixed(2)}` : ''}.`;
+      $('#donemsg').textContent = `${d.version > 1 ? 'Revised' : 'Typeset'}${d.t > t0 ? ` in ${mmss(d.t - t0)}` : ''}.`;
     }, 600);
   });
   es.addEventListener('failed', (e) => {
@@ -879,33 +922,32 @@ function showDone(d) {
 // theme strip: one chip per theme this job can use; a click re-typesets the same main.tex (no Claude)
 let switchingTheme = false;
 function renderStrip(d) {
-  const list = THEMES.filter((t) => t.kinds.includes(d.kind));
+  $('#tstrip').hidden = d.kind === 'report'; // reports are always the standard article layout
+  if (d.kind === 'report') return;
+  const list = [...THEMES];
   if (d.template) list.push({ id: 'custom', name: 'Template' });
   $('#tchips').innerHTML = list.map((t) => `<span class="tcell"${t.id === 'custom' ? '' : ` data-pv="${t.id}"`}><button type="button" class="tchip" data-t="${t.id}" aria-pressed="${t.id === d.theme}"${t.id === 'custom' ? ' title="Your PowerPoint template"' : ''}>${t.id === 'custom'
-    ? '<span class="sw u has thumb"><span class="fn">.pptx</span></span>' : `<span class="thumb"><img src="${preview(t, d.kind)}" alt=""></span>`}${esc(t.name)}</button>${t.id === 'custom' ? '' : eye(t)}</span>`).join('');
+    ? '<span class="sw u has thumb"><span class="fn">.pptx</span></span>' : `<span class="thumb"><img src="${preview(t)}" alt=""></span>`}${esc(t.name)}</button>${t.id === 'custom' ? '' : eye(t)}</span>`).join('');
   $('#tmsg').textContent = ''; $('#tmsg').classList.remove('err');
 }
 $('#tchips').addEventListener('click', async (e) => {
   const chip = e.target.closest('.tchip');
   if (!chip || switchingTheme || chip.getAttribute('aria-pressed') === 'true') return;
   const theme = chip.dataset.t, chips = [...document.querySelectorAll('.tchip')];
-  switchingTheme = true; chips.forEach((c) => { c.disabled = true; }); chip.classList.add('loading');
+  const prev = chips.find((c) => c.getAttribute('aria-pressed') === 'true'), press = (on) => chips.forEach((c) => c.setAttribute('aria-pressed', c === on));
+  switchingTheme = true; chips.forEach((c) => { c.disabled = true; }); chip.classList.add('loading'); press(chip); // pressed at once; a ring spins while it compiles
   $('#tmsg').textContent = ''; $('#tmsg').classList.remove('err');
-  const veil = $('#veil');
-  const slow = setTimeout(() => { veil.innerHTML = `Typesetting in ${esc(themeName(theme))}<small>tectonic, same LaTeX, new theme</small>`; veil.hidden = false; }, 250); // a cached theme comes back before the veil shows
+  document.body.dataset.bg = 'theme'; $('#tmsg').textContent = 'typesetting…'; // the PDF stays up; a thin bar shows the work
   let r, j = {};
   try { r = await fetch(`/api/jobs/${jobId}/theme`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ theme }) }); j = await r.json().catch(() => ({})); }
   catch { r = { ok: false }; j.error = 'Could not reach the server.'; }
-  clearTimeout(slow);
   if (r.ok) {
-    showPdf(j.pdf, last.kind).finally(() => { veil.hidden = true; });
-    setTimeout(() => { veil.hidden = true; }, 4000);
+    V.fade = true; showPdf(j.pdf, last.kind).finally(() => { delete document.body.dataset.bg; });
     last = { ...last, theme }; setSum(sum.src, sum.kind, sum.len, theme);
-    chips.forEach((c) => c.setAttribute('aria-pressed', c === chip));
     $('#tmsg').textContent = j.cached ? 'cached' : (j.ms / 1000).toFixed(1) + ' s';
     $('#tmsg').title = `${themeName(theme)}: ${j.cached ? 'already compiled, swapped in' : 'recompiled with tectonic'}`;
   } else {
-    veil.hidden = true;
+    delete document.body.dataset.bg; press(prev);
     $('#tmsg').textContent = j.error || `Switch failed (${r.status})`; $('#tmsg').classList.add('err');
   }
   chip.classList.remove('loading'); chips.forEach((c) => { c.disabled = false; }); switchingTheme = false;
@@ -913,16 +955,13 @@ $('#tchips').addEventListener('click', async (e) => {
 // theme preview: hover or keyboard focus on a [data-pv] card shows a floating panel beside it; the eye button opens it as a modal
 const tpop = $('#tpop'), noMotion = matchMedia('(prefers-reduced-motion: reduce)'), seen = new Set();
 let pvShow, pvHide, pvCycle, pvFor = null, pvUrls = [], pvPage = 0, pvLabel = '';
-const pvPages = (t, kind) => kind === 'report' && t.kinds.includes('report') ? [1, 2].map((i) => `/previews/${t.id}-report-${i}.jpg`) : [1, 2, 3, 4].map((i) => `/previews/${t.id}-${i}.jpg`);
-const pvKind = (card) => card.closest('#f') ? form.dataset.kind : last?.kind || 'slides';
+const pvPages = (t) => [1, 2, 3, 4].map((i) => `/previews/${t.id}-${i}.jpg`);
 const preload = (urls) => urls.forEach((u) => { if (!seen.has(u)) { seen.add(u); new Image().src = u; } });
 function pvFill(card) {
-  const t = THEMES.find((x) => x.id === card.dataset.pv), kind = pvKind(card);
-  pvUrls = pvPages(t, kind); preload(pvUrls); pvFor = card;
-  pvLabel = `${t.name} ${pvUrls[0].includes('-report') ? 'report' : 'deck'}`;
-  tpop.classList.toggle('portrait', pvUrls[0].includes('-report'));
+  const t = THEMES.find((x) => x.id === card.dataset.pv);
+  pvUrls = pvPages(t); preload(pvUrls); pvFor = card;
+  pvLabel = `${t.name} deck`;
   $('#tpname').textContent = t.name; $('#tpdesc').textContent = t.desc; $('#tpcred').textContent = t.credit;
-  $('#tpkinds').textContent = t.kinds.includes('report') ? 'report + slides' : 'slides only';
   $('#tpth').innerHTML = pvUrls.map((u, i) => `<button type="button" data-i="${i}" aria-label="Page ${i + 1}"><img src="${u}" alt=""></button>`).join('');
   pvSet(0);
 }
@@ -953,7 +992,7 @@ function pvPlace(card) {
 function pvOpen(card) {
   clearTimeout(pvHide);
   if (tpop.matches(':modal') || (tpop.open && pvFor === card)) return;
-  clearTimeout(pvShow); preload(pvPages(THEMES.find((x) => x.id === card.dataset.pv), pvKind(card)));
+  clearTimeout(pvShow); preload(pvPages(THEMES.find((x) => x.id === card.dataset.pv)));
   pvShow = setTimeout(() => { pvFill(card); tpop.setAttribute('open', ''); pvPlace(card); pvAuto(); }, 150); // open attribute, not show(): show() would steal focus
 }
 const pvClose = () => { clearTimeout(pvShow); clearInterval(pvCycle); if (tpop.open) tpop.close(); pvFor = null; };
@@ -1014,10 +1053,12 @@ async function showPdf(url, kind) {
   V.doc?.destroy(); Object.assign(V, { doc, kind, n: doc.numPages, cur: Math.min(V.cur, doc.numPages - 1) }); V.cache.clear(); io.disconnect();
   pdfFrame.hidden = true; pdfFrame.removeAttribute('src'); pv.hidden = false; pv.dataset.mode = kind;
   pv.style.setProperty('--ar', vp.width / vp.height);
-  const slides = kind === 'slides', olds = [...stage.children].map((el) => el.querySelector('canvas'));
+  const slides = kind === 'slides', olds = [...stage.children].map((el) => el.querySelector('canvas')), oldThumbs = [...thumbs.querySelectorAll('.pvt > button:first-child canvas')];
   stage.innerHTML = slides ? skeleton(kind) : Array.from({ length: V.n }, (_, i) => `<div class="pvpage sk" data-i="${i}">${noteBtn(i)}</div>`).join('');
-  [...stage.children].forEach((el, i) => { if (olds[i]) { el.prepend(olds[i]); el.classList.remove('sk'); } }); // the old version stays up until the new one is drawn
+  const keep = (el, c) => { if (c) { c.style.animation = 'none'; c.classList.remove('out', 'xin'); el.prepend(c); el.classList.remove('sk'); } }; // re-inserting would replay the fade-in
+  [...stage.children].forEach((el, i) => keep(el, olds[i])); // the old version stays up until the new one is drawn
   thumbs.innerHTML = slides ? Array.from({ length: V.n }, (_, i) => `<div class="pvt" role="listitem" data-i="${i}"><button type="button" class="sk" aria-label="Slide ${i + 1}"><span class="n">${i + 1}</span></button><button type="button" class="c" data-note="${i + 1}" aria-label="Note on slide ${i + 1}" title="Note on this slide">${NOTE_IC}</button></div>`).join('') : '';
+  [...thumbs.children].forEach((t, i) => keep(t.firstElementChild, oldThumbs[i]));
   if (slides) { await go(V.cur); paintThumbs(tok); }
   else { stage.querySelectorAll('.pvpage').forEach((el) => io.observe(el)); stage.scrollTop = V.cur ? stage.children[V.cur].offsetTop - 18 : 0; count(); }
   markNotes();
@@ -1035,7 +1076,11 @@ async function go(i) {
   const w = box.clientWidth; if (!w) return; // hidden: the ResizeObserver draws it once it shows
   const want = ++V.paint, c = await pageAt(i, w);
   if (!c || want !== V.paint || !box.isConnected) return;
-  box.querySelector('canvas')?.remove(); box.prepend(c); box.classList.remove('sk');
+  box.querySelectorAll('canvas.out').forEach((x) => x.remove()); // a newer swap cancels a running fade
+  const old = box.querySelector('canvas'), fade = V.fade && old && !noMotion.matches; V.fade = false;
+  box.prepend(c); box.classList.remove('sk');
+  if (fade) { c.classList.add('xin'); old.style.animation = ''; old.classList.add('out'); old.addEventListener('animationend', () => old.remove(), { once: true }); setTimeout(() => old.remove(), 600); }
+  else old?.remove();
   for (const k of V.cache.keys()) { const [p, kw] = k.split('@'); if (+kw !== w || Math.abs(p - i) > 1) V.cache.delete(k); }
   if (i + 1 < V.n) pageAt(i + 1, w); if (i > 0) pageAt(i - 1, w);
 }
@@ -1043,7 +1088,7 @@ async function paintThumbs(tok) {
   for (const t of thumbs.children) {
     const b = t.firstElementChild, c = await render(+t.dataset.i, b.clientWidth || 88).catch(() => null);
     if (tok !== V.token) return;
-    if (c) { b.prepend(c); b.classList.remove('sk'); }
+    if (c) { const old = b.querySelector('canvas'); if (old) { c.classList.add('xin'); old.remove(); } b.prepend(c); b.classList.remove('sk'); } // drawn one by one, so the fade is staggered
   }
 }
 // reports: draw pages as they near the viewport; redraw when the width changes
@@ -1116,6 +1161,7 @@ function addPage(n = '') {
 $('#addpg').onclick = () => { const ns = [...pgs.querySelectorAll('input[type=number]')].map((i) => +i.value || 0); addPage(ns.length ? Math.max(...ns) + 1 : V.doc ? V.cur + 1 : ''); };
 // "Note on this page" from the viewer: open the drawer and focus that page's row, adding it if needed
 function noteOn(n) {
+  if (revising()) return;
   toggleRev(true);
   const row = [...pgs.querySelectorAll('.pg')].find((r) => +r.querySelector('input').value === n);
   if (row) { row.querySelector('.pn').focus(); row.animate?.([{ boxShadow: '0 0 0 3px rgba(229,72,30,.35)' }, { boxShadow: '0 0 0 3px rgba(229,72,30,0)' }], { duration: 600 }); }
@@ -1127,6 +1173,7 @@ pgs.addEventListener('click', () => markNotes()); // after a row's × removed it
 let more = [];
 const renderMore = () => { $('#addchips').innerHTML = chipsHtml(more); };
 dropzone($('#adddrop'), $('#addfile'), $('#addchips'), (list) => { merge(more, list); renderMore(); }, (i) => { more.splice(i, 1); renderMore(); });
+const revClear = () => { $('#revgen').value = $('#addnotes').value = $('#addrepo').value = ''; more = []; renderMore(); $('#addm').open = false; pgs.querySelectorAll('.pg').forEach((p) => p.remove()); markNotes(); };
 const revHint = (msg) => { $('#reverr').textContent = msg || "The agent edits the existing LaTeX. It won't add facts your files don't have."; $('#reverr').classList.toggle('err', !!msg); };
 rev.addEventListener('submit', async (e) => {
   e.preventDefault(); revHint();
@@ -1151,12 +1198,25 @@ rev.addEventListener('submit', async (e) => {
   });
   go.disabled = false; go.textContent = label;
   if (!ok) return revHint(j.error || `Revision failed (${status})`);
-  $('#revgen').value = $('#addnotes').value = $('#addrepo').value = ''; more = []; renderMore(); $('#addm').open = false;
-  pgs.querySelectorAll('.pg').forEach((p) => p.remove()); markNotes(); toggleRev(false); $('#back').hidden = true;
-  feed.innerHTML = ''; t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
-  setState('running', `Revising to v${j.version}`);
+  // the current PDF stays up and usable; progress goes in the panel's status line, the steps in the build log
+  clearFeed(); feedKind = last?.kind || ''; t0 = Date.now(); $('#back').hidden = true;
+  revBusy(true); $('#pill').textContent = `Revising to v${j.version}`;
   listen(jobId);
 });
+// a revision in the background: inputs locked, one status line with the latest phase and the time
+let revTick = null;
+function revBusy(on) {
+  if (on) { document.body.dataset.bg = 'rev'; revStatus(); revTick = setInterval(revStatus, 500); if (rev.hidden) toggleRev(true); }
+  else { delete document.body.dataset.bg; clearInterval(revTick); }
+  rev.querySelectorAll('input, textarea, button').forEach((el) => { el.disabled = on; });
+  document.querySelectorAll('.tchip').forEach((c) => { c.disabled = on; });
+}
+function revStatus() {
+  const li = [...feed.children].reverse().find((l) => !l.classList.contains('note'));
+  $('#rstattext').textContent = `Applying your changes… ${li ? li.querySelector('.x').textContent + ' · ' : ''}${mmss(Date.now() - t0)}`;
+}
+const revising = () => document.body.dataset.bg === 'rev';
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 2600); }
 // questions: answer or skip, then the same feed carries on
 const ask = $('#ask');
 const askHint = (msg = '') => { $('#askerr').textContent = msg; $('#askerr').classList.toggle('err', !!msg); };
@@ -1181,6 +1241,11 @@ $('#skip').onclick = () => sendAnswers({ skip: true });
 $('#back').onclick = () => { $('#back').hidden = true; showDone(last); };
 function fail(msg) {
   addStep('failed', msg);
+  if (revising()) { // keep the old PDF; the error and a retry go in the panel, the inputs are kept for it
+    revBusy(false); setState('done', 'Ready');
+    revHint(`Revision failed: ${msg}`); $('#revgo').textContent = 'Retry';
+    return;
+  }
   setState('failed', 'Failed');
 }
 // the collapsed form: one line of what this job was made from
@@ -1193,7 +1258,7 @@ function setSum(src, kind, len, theme) {
   $('#again').textContent = kind === 'slides' ? 'New deck' : 'New report';
 }
 const reset = () => { es?.close(); toggleRev(false); ask.hidden = true; $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; clearPdf(); sum = {}; more = []; renderMore(); scrollTo({ top: 0, behavior: 'smooth' }); };
-const busy = () => ['running', 'waiting'].includes(document.body.dataset.state);
+const busy = () => ['running', 'waiting'].includes(document.body.dataset.state) || revising();
 $('#retry').onclick = reset;
 // back to the form, inputs kept; a job still running is dropped from view (the server finishes it, #job=<id> reattaches)
 $('#edit').onclick = () => { if (!busy() || confirm('Leave this job? It keeps running on the server, but this page stops following it.')) reset(); };
@@ -1201,7 +1266,7 @@ $('#again').onclick = () => { if (busy() && !confirm('Leave this job and start a
 // reattach after a reload: #job=<id>
 const resume = location.hash.match(/^#job=([a-f0-9]{8})$/);
 if (resume) {
-  feed.innerHTML = ''; t0 = 0; tick = setInterval(() => { if (t0) $('#clock').textContent = mmss(Date.now() - t0); }, 500);
+  clearFeed(); t0 = 0; tick = setInterval(() => { if (t0) $('#clock').textContent = mmss(Date.now() - t0); }, 500);
   $('#jobid').textContent = '#' + resume[1]; setSum('#' + resume[1]); setState('running', 'Working'); listen(resume[1]);
 }
 </script>
