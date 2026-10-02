@@ -111,24 +111,34 @@ async function unzipInto(zipPath, inputDir) {
 
 // ---------- claude stream-json -> human steps ----------
 function describeTool(name, input = {}, jobDir = '.') {
-  const file = input.file_path ? path.basename(input.file_path) : '';
+  const fp = input.file_path || '';
+  const file = path.basename(fp);
   switch (name) {
-    case 'Write': return ['write', `Writing ${file}`];
-    case 'Edit': case 'MultiEdit': return ['write', `Editing ${file}`];
+    case 'Write':
+      if (file === 'questions.json') return ['ask', 'Writing down what it needs to ask you'];
+      return /\.tex$/.test(file) ? ['write', `Writing ${file}`] : /\.sty$/.test(file) ? ['theme', `Building the theme ${file}`] : ['write', `Writing ${file}`];
+    case 'Edit': case 'MultiEdit': return ['edit', `Editing ${file}`];
     case 'Read': {
-      const rel = input.file_path ? path.relative(jobDir, path.resolve(jobDir, input.file_path)) : 'file';
-      return ['read', `Reading ${rel.startsWith('..') ? path.basename(rel) : rel}`];
+      const rel = fp ? path.relative(jobDir, path.resolve(jobDir, fp)) : 'file';
+      const shown = rel.startsWith('..') ? file : rel;
+      if (/SKILL\.md$|charts\.md$|template\.md$/.test(fp)) return ['skill', `Reading the playbook (${file})`];
+      if (/\.(png|jpe?g|gif|webp)$/i.test(fp)) return ['image', `Looking at ${shown}`];
+      if (/\.pdf$/i.test(fp)) return ['review', `Checking the rendered ${file}`];
+      if (/\.(csv|tsv)$/i.test(fp) || file === 'facts.json') return ['data', `Reading ${shown}`];
+      if (/\.(tex|sty|log)$/i.test(fp)) return ['tex', `Reading ${shown}`];
+      if (/\.(md|txt|rst)$/i.test(fp) || file === 'job.json') return ['doc', `Reading ${shown}`];
+      return ['code', `Reading code: ${shown}`];
     }
-    case 'Glob': case 'Grep': case 'LS': return ['read', 'Looking through the inputs'];
+    case 'Glob': case 'Grep': case 'LS': return ['search', 'Looking through the inputs'];
     case 'Skill': {
       const s = input.skill || input.command || input.name || '';
-      return /humaniz/i.test(s) ? ['humanize', 'Humanizing prose'] : ['read', `Loading ${s || 'a'} skill`];
+      return /humaniz/i.test(s) ? ['humanize', 'Humanizing the prose'] : ['skill', `Loading the ${s || 'devreport'} playbook`];
     }
     case 'Bash': {
       const c = String(input.command || '');
-      return /^\s*tectonic\b/.test(c) ? ['compile', 'Compiling with tectonic'] : ['think', `Tried a shell command (only tectonic is allowed)`];
+      return /^\s*tectonic\b/.test(c) ? ['compile', 'Compiling with tectonic'] : ['blocked', 'Tried a shell command (only tectonic is allowed)'];
     }
-    case 'TodoWrite': return ['think', 'Planning the outline'];
+    case 'TodoWrite': return ['plan', 'Planning the outline'];
     default: return ['think', `Using ${name}`];
   }
 }
@@ -167,7 +177,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
         let msg; try { msg = JSON.parse(line); } catch { continue; }
         if (msg.type === 'system' && msg.subtype === 'init') {
           sessionId = msg.session_id;
-          step(id, 'think', opts.resume ? 'Claude Code picked up where it left off' : 'Claude Code started');
+          step(id, 'think', opts.resume ? 'Agent picked up where it left off' : 'Agent started');
         }
         for (const c of msg.message?.content || []) {
           if (msg.type === 'assistant' && c.type === 'tool_use') {
@@ -184,7 +194,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
       }
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
-    child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'claude CLI not found on PATH' : e.message)); });
+    child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'Agent CLI (claude) not found on PATH' : e.message)); });
     child.on('close', (code) => { clearTimeout(timer); flush(); resolve({ code, stderr, resultText, cost, sessionId }); });
   });
 }
@@ -276,7 +286,7 @@ async function build(id, jobDir, j, resumeLine) {
       emit(id, 'questions', { questions });
       return;
     }
-    throw new Error(`Claude finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
+    throw new Error(`The agent finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
   }
   await fsp.rm(qf, { force: true });
   await setStatus(jobDir, 'done', { sessionId });
@@ -327,7 +337,7 @@ function pipeline(id, jobDir, { zips, repoUrl, template }, j) {
       step(id, 'template', `Template: ${Object.keys(t.colors).length} colours, ${fonts}, ${t.media.length} image${t.media.length === 1 ? '' : 's'}`);
     }
 
-    step(id, 'think', `Handing off to Claude Code (${j.kind}, ${j.theme} theme, about ${j.length} ${unit(j.kind)})`);
+    step(id, 'think', `Handing off to the agent (${j.kind}, ${j.theme} theme, about ${j.length} ${unit(j.kind)})`);
     await build(id, jobDir, j);
   });
 }
