@@ -155,9 +155,6 @@ DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai-compatible:qwen3:8b DEVREPORT_BASE_UR
 - **SSE streams drop silently.** A browser or proxy can close a stream that has been quiet while the agent thinks. The server now sends a ping every 15 seconds, and the client reconnects, replays the feed without duplicating steps, and reattaches to a running job after a page reload.
 - **Weaker models fail in predictable ways.** When I made the agent loop provider-agnostic and ran the same skill on smaller models (qwen3:8b on Ollama, for one), they repeated the same call, stopped before there was a PDF, or got stuck on compile errors in the `\dr*` macros. Each became a guard rail in `agent.js`: repeated calls refused, up to two nudges to compile, and the macro's usage sent back with the error.
 
-## AI disclosure
-
-I built devreport with Claude Code as a pair programmer: planning, writing code, and reviews by sub-agents. At runtime, an agent (Claude Code headless, or any AI SDK model) writes the LaTeX prose of each report. The collector, intake, server, UI and themes are ordinary code you can read and test.
 
 ## Third-party credits
 
