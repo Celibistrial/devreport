@@ -513,7 +513,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 <div class="wrap">
   <section class="hero">
     <h1>Your messy repo, <i>typeset.</i></h1>
-    <p class="lede">Drop in dev logs, notes, screenshots, a zip, or a GitHub link. devreport counts the commits and charts the real numbers. The agent then writes the LaTeX, compiles it, fixes its own errors, and gives you a PDF report or slide deck.</p>
+    <p class="lede">Drop in dev logs, notes, screenshots, a zip, or a GitHub link. devreport reads your code, logs and data, and charts only the numbers it actually finds. The agent then writes the LaTeX, compiles it, fixes its own errors, and gives you a PDF report or slide deck.</p>
   </section>
 </div>
 
@@ -547,7 +547,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
         <label class="opt-card"><input type="radio" name="kind" value="slides"><span class="face"><span class="shape slide"></span><span><b>Slides</b><small>Beamer deck, 16:9</small></span></span></label>
       </div>
       <div class="len">
-        <div class="lenhead"><label class="rlab" for="lenr" id="lenlab">Pages</label><small>within ±1 · shorter if your files run out</small></div>
+        <div class="lenhead"><label class="rlab" for="lenr" id="lenlab">Pages</label><small>exact · shorter only if your files run out</small></div>
         <div class="lenrow">
           <input type="range" id="lenr" min="2" max="10" value="4" step="1" aria-describedby="lenv">
           <div class="step"><button type="button" data-d="-1" aria-label="One fewer">−</button><output id="lenv" for="lenr">4</output><span id="lenu">pages</span><button type="button" data-d="1" aria-label="One more">+</button></div>
