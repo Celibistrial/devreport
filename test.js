@@ -52,7 +52,9 @@ test('collects git, logs, tables, notes, images', () => {
 
   assert.strictEqual(facts.project.name, 'widget-app');
   assert.match(facts.project.readme, /A widget/);
-  assert.deepStrictEqual(facts.repo, { commits: 3, authors: ['Ada'], firstDate: '2026-09-28', lastDate: '2026-09-30', linesAdded: 7, linesRemoved: 1, activeDays: 2, days: 3 });
+  assert.deepStrictEqual(facts.repo, { commits: 3, authors: ['Ada'], firstDate: '2026-09-28', lastDate: '2026-09-30', activeDays: 2, days: 3,
+    milestones: [{ date: '2026-09-28', message: 'docs: add readme' }, { date: '2026-09-28', message: 'feat: app skeleton' }],
+    appendix: { linesAdded: 7, linesRemoved: 1 } });
   assert.deepStrictEqual(csv(job, 'commits_per_day.csv'), ['date,commits,added,removed', '2026-09-28,2,5,0', '2026-09-29,0,0,0', '2026-09-30,1,2,1']);
   const hours = csv(job, 'commit_hours.csv');
   assert.strictEqual(hours.length, 25);
@@ -68,7 +70,9 @@ test('collects git, logs, tables, notes, images', () => {
   assert.deepStrictEqual(csv(job, 'table_sales.csv'), ['month,revenue', '2026-07-01,100', '2026-08-01,1200', '2026-09-01,900']);
   const sales = facts.charts.find(c => c.csv === 'data/table_sales.csv');
   assert.deepStrictEqual([sales.kind, sales.x, sales.y], ['line', 'month', 'revenue']);
-  assert.ok(facts.charts.some(c => c.csv === 'data/commits_per_day.csv' && c.kind === 'line'));
+  // git vanity charts are written as CSVs but not offered as charts
+  assert.deepStrictEqual(facts.charts.map(c => c.csv).sort(),
+    ['data/commits_per_day.csv', 'data/errors_over_time.csv', 'data/table_sales.csv', 'data/top_errors.csv']);
 
   assert.deepStrictEqual(facts.notes.map(n => n.file), ['input/repo/package.json', 'input/notes.md']);
   assert.strictEqual(facts.answers, 'For students.');
@@ -89,10 +93,68 @@ test('pasted git log text and syslog/[HH:MM:SS] logs', () => {
   fs.writeFileSync(path.join(job, 'input/sys.log'), 'Oct  2 03:14:15 host app: ERROR fail\n');
   const facts = collect(job);
   assert.deepStrictEqual(facts.repo.authors, ['Bo', 'Cy']);
-  assert.strictEqual(facts.repo.linesAdded, 13);
+  assert.strictEqual(facts.repo.appendix.linesAdded, 13);
+  assert.deepStrictEqual(facts.repo.milestones.map(m => m.message), ['fix: null deref']); // 'add tests' is a test commit, not a feature
   assert.deepStrictEqual(csv(job, 'commit_types.csv'), ['type,count', 'fix,1', 'test,1']);
   assert.deepStrictEqual(facts.logs, { lines: 5, errors: 2, warnings: 1 });
   assert.strictEqual(facts.notes.length, 0);
+});
+
+test('vendored paths, nested repos and drive-by authors stay out of the stats; milestones spread and tags', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  const repo = path.join(job, 'input', 'app');
+  fs.mkdirSync(repo, { recursive: true });
+  const git = (cwd, args, date, who = 'Ada') => execFileSync('git', args, {
+    cwd, stdio: 'ignore',
+    env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: who, GIT_AUTHOR_EMAIL: 'a@x', GIT_COMMITTER_NAME: who,
+      GIT_COMMITTER_EMAIL: 'a@x', GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+  });
+  const put = (rel, body) => { fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true }); fs.writeFileSync(path.join(repo, rel), body); };
+  git(repo, ['init', '-q']);
+  const commit = (files, msg, day, who) => { for (const [f, b] of Object.entries(files)) put(f, b); git(repo, ['add', '-A']); git(repo, ['commit', '-q', '-m', msg], `${day}T12:00:00+00:00`, who); };
+  commit({ 'a.js': 'x\n' }, 'initial commit', '2026-01-01');
+  commit({ 'vendor/lib.js': 'v\n'.repeat(500), 'package-lock.json': '{}\n'.repeat(300) }, 'add vendored lib', '2026-01-02', 'Sindre');
+  for (let i = 0; i < 12; i++) commit({ [`f${i}.js`]: 'y\n'.repeat(i + 1) }, `feat: part ${i}`, `2026-01-${String(3 + i * 2).padStart(2, '0')}`);
+  git(repo, ['tag', 'v1'], '2026-01-30T00:00:00+00:00');
+  commit({ 'b.js': 'z\n' }, 'fix typo', '2026-01-28', 'Drive-by');
+  fs.writeFileSync(path.join(repo, '.gitignore'), 'jobs/\n');
+  // a nested clone inside a gitignored jobs/ folder is not part of the project
+  const nested = path.join(repo, 'jobs', 'x', 'repo');
+  fs.mkdirSync(nested, { recursive: true });
+  fs.writeFileSync(path.join(repo, 'jobs', 'x', 'shot.png'), PNG);
+  git(nested, ['init', '-q']); fs.writeFileSync(path.join(nested, 'n.js'), 'n\n');
+  git(nested, ['add', '-A']); git(nested, ['commit', '-q', '-m', 'add nested'], '2011-01-26T00:00:00+00:00', 'Old');
+
+  const facts = collect(job);
+  const r = facts.repo;
+  assert.strictEqual(r.firstDate, '2026-01-01');
+  assert.strictEqual(r.commits, 14); // vendored-only commit dropped
+  assert.deepStrictEqual(r.authors, ['Ada']); // Drive-by has 1 commit
+  assert.strictEqual(r.appendix.linesAdded, 1 + 78 + 1);
+  assert.ok(!csv(job, 'top_files.csv').some(l => /vendor|lock/.test(l)));
+  assert.ok(!fs.readFileSync(path.join(job, 'data/languages.csv'), 'utf8').includes('JSON'));
+  assert.deepStrictEqual(facts.images, []);
+  assert.ok(r.milestones.length === 8);
+  assert.deepStrictEqual(r.milestones[0], { date: '2026-01-01', message: 'initial commit' });
+  assert.ok(r.milestones.some(m => m.message === 'feat: part 11')); // tagged (and biggest)
+  const dates = r.milestones.map(m => m.date);
+  assert.deepStrictEqual(dates, [...dates].sort());
+  assert.ok(dates.some(d => d < '2026-01-10') && dates.some(d => d > '2026-01-20'), 'spread across the span');
+});
+
+test('code facts: source files without vendored/tests noise, entry points from manifests, names and size', () => {
+  const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
+  const put = (rel, body) => { fs.mkdirSync(path.dirname(path.join(job, rel)), { recursive: true }); fs.writeFileSync(path.join(job, rel), body); };
+  const lines = n => 'x = 1\n'.repeat(n);
+  put('input/p/server.py', lines(38)); put('input/p/client.py', lines(28)); put('input/p/util/helpers.py', lines(90));
+  put('input/p/tests/test_server.py', lines(200)); put('input/p/dist/bundle.min.js', lines(999));
+  put('input/p/requirements.txt', 'websockets\n'); put('input/p/notes.md', '# n\n');
+  put('input/p/package.json', '{"name":"p","bin":{"p":"./tools/go.js"},"scripts":{"start":"node tools/go.js"}}'); put('input/p/tools/go.js', lines(3));
+  const c = collect(job).code;
+  assert.deepStrictEqual(c.entry, ['input/p/tools/go.js', 'input/p/server.py', 'input/p/client.py', 'input/p/util/helpers.py']);
+  assert.deepStrictEqual(c.files.map(f => f.path), [...c.entry, 'input/p/tests/test_server.py']);
+  assert.deepStrictEqual(c.files[1], { path: 'input/p/server.py', lang: 'Python', lines: 38 });
+  assert.strictEqual(collect(fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'))).code, null);
 });
 
 test('empty and missing input never throws', () => {
@@ -146,4 +208,15 @@ test('pptx.js extracts palette, fonts, layout boxes, media; rejects non-pptx and
   assert.throws(() => extract(path.join(dir, 'notes.pptx'), path.join(dir, 'o2')), /Not a \.pptx/);
   zip(path.join(dir, 'evil.pptx'), { ...parts, '../evil.txt': 'x' });
   assert.throws(() => extract(path.join(dir, 'evil.pptx'), path.join(dir, 'o3')), /escapes/);
+});
+
+test('parseRevision validates revise feedback', () => {
+  const { parseRevision } = require('./server');
+  const ok = parseRevision(JSON.stringify({ general: ' tighter ', pages: [{ page: 5, note: 'b' }, { page: 3, note: ' a ' }, { page: 9, note: '  ' }] }));
+  assert.deepStrictEqual(ok, { general: 'tighter', pages: [{ page: 3, note: 'a' }, { page: 5, note: 'b' }] });
+  for (const [body, re] of [['nope', /JSON/], ['[]', /object/], ['{}', /change/], ['{"general":5}', /string/],
+    [JSON.stringify({ general: 'x'.repeat(4001) }), /over 4000/], ['{"pages":[{"page":2.5,"note":"x"}]}', /whole numbers/],
+    ['{"pages":[{"page":"3","note":"x"}]}', /whole numbers/], ['{"pages":[{"page":0,"note":"x"}]}', /whole numbers/],
+    ['{"pages":{}}', /array/], [JSON.stringify({ pages: [{ page: 1, note: 'x'.repeat(1001) }] }), /over 1000/]])
+    assert.throws(() => parseRevision(body), re);
 });

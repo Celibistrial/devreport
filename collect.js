@@ -21,7 +21,12 @@ const LANGS = {
   '.ipynb': 'Jupyter',
 };
 const LOCKFILES = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|Gemfile\.lock|composer\.lock|go\.sum|bun\.lockb)$/;
-const GENERATED = /(\.min\.(js|css)$|\.map$|(^|\/)(dist|build|vendor|target|out|__pycache__|\.venv|venv|\.next)\/)/;
+const GENERATED = /(\.min\.(js|css)$|\.map$|(^|\/)(dist|build|vendor|target|out|__pycache__|\.venv|venv|\.next|node_modules|\.claude\/skills)\/)/;
+const vendored = p => LOCKFILES.test(p) || GENERATED.test(p);
+const MAX_MILESTONES = 8, MAX_CODE_FILES = 40, MAX_ENTRY = 8;
+const NOT_CODE = new Set(['Markdown', 'JSON', 'YAML', 'TOML']);
+const TEST_FILE = /(^|\/)(tests?|__tests__|spec)\/|[._-](test|spec)[.-][^/]+$|(^|\/)test_[^/]+$|(^|\/)test\.[^/]+$/i;
+const ENTRY_NAME = /^(main|app|server|index|cli|__main__|client|run|manage)$/i;
 const MONTHS = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
 
 // ---------- helpers ----------
@@ -61,7 +66,7 @@ function walk(jobDir) {
   const files = [], repos = [];
   (function rec(rel) {
     let ents; try { ents = fs.readdirSync(path.join(jobDir, rel), { withFileTypes: true }); } catch { return; }
-    if (ents.some(e => e.name === '.git')) repos.push(rel);
+    if (ents.some(e => e.name === '.git') && !repos.some(r => rel.startsWith(r + '/'))) repos.push(rel); // nested = vendored/untracked
     for (const e of ents) {
       const r = rel + '/' + e.name;
       if (e.isSymbolicLink()) continue;
@@ -93,8 +98,8 @@ function dayHour(s) {
 function gitLog(repoAbs) {
   const out = execFileSync('git', [
     '-c', 'log.showSignature=false', '-c', 'core.fsmonitor=false',
-    'log', '--numstat', '--no-textconv', '--no-ext-diff', '--date=iso-strict',
-    '--pretty=format:%x1e%an%x1f%ad%x1f%s',
+    'log', '--numstat', '--no-textconv', '--no-ext-diff', '--date=iso-strict', '--decorate=short',
+    '--pretty=format:%x1e%an%x1f%ad%x1f%s%x1f%D',
   ], {
     cwd: repoAbs, timeout: 60000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'],
     env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' },
@@ -102,12 +107,19 @@ function gitLog(repoAbs) {
   const commits = [];
   for (const chunk of out.split('\x1e').slice(1)) {
     const [head, ...rest] = chunk.split('\n');
-    const [author, date, subject] = head.split('\x1f');
+    const [author, date, subject, refs] = head.split('\x1f');
     const dh = dayHour(date || '');
     if (!dh) continue;
-    commits.push({ author, ...dh, subject: subject || '', files: rest.map(numstatLine).filter(Boolean) });
+    commits.push({ author, ...dh, subject: subject || '', tag: /\btag: /.test(refs || ''), files: rest.map(numstatLine).filter(Boolean) });
   }
   return commits;
+}
+// Gitignored files and dirs (dirs end in '/'), e.g. node_modules/, dist/, a jobs/ folder of nested clones. Runs no hooks.
+function gitIgnored(repoAbs) {
+  return execFileSync('git', ['-c', 'core.fsmonitor=false', 'ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'], {
+    cwd: repoAbs, timeout: 30000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'],
+    env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' },
+  }).toString('utf8').split('\0').filter(Boolean);
 }
 // Pasted `git log --numstat` (default pretty format).
 function parsePastedGitLog(text) {
@@ -135,12 +147,36 @@ function commitType(s) {
   if (/\b(add|feat|implement|create|new|introduce|support|initial)\w*/i.test(s)) return 'feat';
   return 'other';
 }
-function gitOutputs(commits, dataDir, charts) {
-  const days = {}, hours = Array(24).fill(0), files = {}, types = {};
+// First commit + tagged commits, then the biggest feat/add commits, one per time window across the span.
+function milestones(commits) {
+  const size = c => c.files.reduce((n, f) => n + f.added + f.removed, 0);
+  const tags = commits.filter(c => c.tag && c !== commits[0]), k = Math.min(tags.length, MAX_MILESTONES - 1);
+  const pick = new Set([commits[0], ...Array.from({ length: k }, (_, i) => tags[k < 2 ? 0 : Math.round(i * (tags.length - 1) / (k - 1))])]);
+  const feats = commits.filter(c => !pick.has(c) && commitType(c.subject) === 'feat').sort((a, b) => size(b) - size(a));
+  const t = c => Date.parse(c.day), t0 = t(commits[0]), span = t(commits[commits.length - 1]) - t0 + 1;
+  const slots = MAX_MILESTONES - pick.size;
+  for (let w = 0; w < slots; w++) { // biggest feat in each window, then fill empty windows with the next biggest
+    const c = feats.find(c => !pick.has(c) && Math.min(slots - 1, Math.floor((t(c) - t0) / span * slots)) === w);
+    if (c) pick.add(c);
+  }
+  for (const c of feats) if (pick.size < MAX_MILESTONES) pick.add(c);
+  return commits.filter(c => pick.has(c)).map(c => ({ date: c.day, message: c.subject }));
+}
+function gitOutputs(allCommits, dataDir, charts) {
+  // Drop vendored/generated paths from line/file stats, and drop commits that only touched those (lockfile
+  // bumps, vendored drops). A commit to the repo's own .claude/skills is still real work, so it stays.
+  const commits = allCommits
+    .map(c => ({ ...c, files: c.files.filter(f => !vendored(f.path)), own: !c.files.length || c.files.some(f => !vendored(f.path) || f.path.startsWith('.claude/skills/')) }))
+    .filter(c => c.own)
+    .reverse() // git lists newest first
+    .sort((a, b) => a.day.localeCompare(b.day) || a.hour - b.hour);
+  if (!commits.length) return null;
+  const days = {}, hours = Array(24).fill(0), files = {}, types = {}, byAuthor = {};
   let added = 0, removed = 0;
   for (const c of commits) {
     const d = days[c.day] || (days[c.day] = [0, 0, 0]);
     d[0]++; hours[c.hour]++;
+    byAuthor[c.author] = (byAuthor[c.author] || 0) + 1;
     types[commitType(c.subject)] = (types[commitType(c.subject)] || 0) + 1;
     for (const f of c.files) {
       d[1] += f.added; d[2] += f.removed; added += f.added; removed += f.removed;
@@ -153,20 +189,20 @@ function gitOutputs(commits, dataDir, charts) {
   const first = new Date(sorted[0] + 'T00:00:00Z'), last = new Date(sorted[sorted.length - 1] + 'T00:00:00Z');
   if ((last - first) / 864e5 <= 366) for (let t = first; t <= last; t = new Date(+t + 864e5)) all.push(t.toISOString().slice(0, 10));
   else all.push(...sorted);
-  const add = (csv, kind, x, y, title, n) => n >= 2 && charts.push({ csv: 'data/' + csv, kind, x, y, title });
-  add('commits_per_day.csv', 'line', 'date', 'commits', 'Commits per day',
-    writeCsv(dataDir, 'commits_per_day.csv', ['date', 'commits', 'added', 'removed'], all.map(d => [d, ...(days[d] || [0, 0, 0])])));
+  // Only commits_per_day is charted (as the timeline backdrop); the rest are written for reference, not listed in facts.charts.
+  if (writeCsv(dataDir, 'commits_per_day.csv', ['date', 'commits', 'added', 'removed'], all.map(d => [d, ...(days[d] || [0, 0, 0])])) >= 2)
+    charts.push({ csv: 'data/commits_per_day.csv', kind: 'line', x: 'date', y: 'commits', title: 'Commits per day (timeline backdrop only)' });
   writeCsv(dataDir, 'commit_hours.csv', ['hour', 'commits'], hours.map((n, h) => [h, n]));
-  add('commit_hours.csv', 'bar', 'hour', 'commits', 'Commits by hour of day', commits.length >= 2 ? 24 : 0);
-  add('top_files.csv', 'bar', 'file', 'changes', 'Most edited files',
-    writeCsv(dataDir, 'top_files.csv', ['file', 'changes'], Object.entries(files).sort((a, b) => b[1] - a[1]).slice(0, 10)));
+  writeCsv(dataDir, 'top_files.csv', ['file', 'changes'], Object.entries(files).sort((a, b) => b[1] - a[1]).slice(0, 10));
   const order = ['feat', 'fix', 'docs', 'refactor', 'test', 'chore', 'other'];
-  add('commit_types.csv', 'pie', 'type', 'count', 'Commit types',
-    writeCsv(dataDir, 'commit_types.csv', ['type', 'count'], order.filter(t => types[t]).map(t => [t, types[t]])));
+  writeCsv(dataDir, 'commit_types.csv', ['type', 'count'], order.filter(t => types[t]).map(t => [t, types[t]]));
+  const authors = Object.keys(byAuthor);
   return {
-    commits: commits.length, authors: [...new Set(commits.map(c => c.author))],
-    firstDate: sorted[0], lastDate: sorted[sorted.length - 1], linesAdded: added, linesRemoved: removed,
-    activeDays: sorted.length, days: sorted.length && Math.round((Date.parse(sorted[sorted.length - 1]) - Date.parse(sorted[0])) / 864e5) + 1,
+    commits: commits.length, authors: commits.length < 5 ? authors : authors.filter(a => byAuthor[a] >= 2),
+    firstDate: sorted[0], lastDate: sorted[sorted.length - 1],
+    activeDays: sorted.length, days: Math.round((Date.parse(sorted[sorted.length - 1]) - Date.parse(sorted[0])) / 864e5) + 1,
+    milestones: milestones(commits),
+    appendix: { linesAdded: added, linesRemoved: removed },
   };
 }
 
@@ -259,16 +295,40 @@ function tableOutput(rel, header, rows, dataDir, charts, used) {
   charts.push({ csv: `data/${name}.csv`, ...chart, title: title[0].toUpperCase() + title.slice(1) + ` (${path.basename(rel)})` });
 }
 
+// ---------- code ----------
+// Likely entry points, in order: files a manifest names (main/bin/scripts, pyproject), entry-like names
+// (shallowest first), then the largest non-test files. files[] is sorted entry first, then by size, tests last.
+function codeFacts(code, files, abs) {
+  const byPath = new Map(code.map(c => [c.path, c])), entry = [];
+  const add = p => { if (byPath.has(p) && !entry.includes(p) && entry.length < MAX_ENTRY) entry.push(p); };
+  for (const m of files.filter(f => /(^|\/)(package\.json|pyproject\.toml|setup\.py|Cargo\.toml)$/.test(f) && !vendored(f)).sort((a, b) => a.split('/').length - b.split('/').length)) {
+    const dir = path.dirname(m), t = readText(abs(m)) || '';
+    let refs = t.match(/[\w./-]+\.(m?[jt]sx?|cjs|py|rs|go|rb)\b/g) || [];
+    if (m.endsWith('.toml')) refs = refs.concat((t.match(/=\s*"([\w.]+):\w+"/g) || []).map(s => s.match(/"([\w.]+):/)[1].replace(/\./g, '/') + '.py'));
+    for (const r of refs) { add(path.join(dir, r)); add(path.join(dir, 'src', r)); }
+  }
+  const depth = p => p.split('/').length, big = (a, b) => b.lines - a.lines || a.path.localeCompare(b.path);
+  const nonTest = code.filter(c => !TEST_FILE.test(c.path));
+  nonTest.filter(c => ENTRY_NAME.test(path.basename(c.path, path.extname(c.path))))
+    .sort((a, b) => depth(a.path) - depth(b.path) || big(a, b)).forEach(c => add(c.path));
+  [...nonTest].sort(big).forEach(c => add(c.path));
+  const rank = c => entry.includes(c.path) ? entry.indexOf(c.path) : TEST_FILE.test(c.path) ? 2e9 - c.lines : 1e9 - c.lines;
+  return { files: [...code].sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path)).slice(0, MAX_CODE_FILES), entry };
+}
+
 // ---------- main ----------
 function collect(jobDir) {
   jobDir = path.resolve(jobDir);
   const dataDir = path.join(jobDir, 'data'), imgDir = path.join(jobDir, 'images');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(imgDir, { recursive: true });
-  const facts = { project: { name: '', readme: null }, repo: null, logs: null, charts: [], notes: [], answers: null, images: [] };
+  const facts = { project: { name: '', readme: null }, repo: null, logs: null, code: null, charts: [], notes: [], answers: null, images: [] };
   const safe = (label, fn) => { try { return fn(); } catch (e) { console.error(`collect: ${label}: ${e.message}`); } };
 
-  const { files, repos } = walk(jobDir);
+  const walked = walk(jobDir), repos = walked.repos;
+  // Inside a repo drop gitignored files (nested clones, build output, node_modules): they aren't the project.
+  const ignored = repos.flatMap(r => (safe('ls-files ' + r, () => gitIgnored(path.join(jobDir, r))) || []).map(p => r + '/' + p));
+  const files = walked.files.filter(f => !ignored.some(p => p.endsWith('/') ? f.startsWith(p) : f === p));
   const inRepo = f => repos.some(r => f.startsWith(r + '/'));
   const abs = f => path.join(jobDir, f);
   const commits = [], logTexts = [], usedTables = new Set();
@@ -305,23 +365,25 @@ function collect(jobDir) {
 
   // Languages: files inside repos, or all input if there is no repo.
   safe('languages', () => {
-    const langs = {};
+    const langs = {}, code = [];
     for (const f of files) {
       if (repos.length && !inRepo(f)) continue;
       const lang = LANGS[path.extname(f).toLowerCase()];
-      if (!lang || LOCKFILES.test(f) || GENERATED.test(f)) continue;
+      if (!lang || vendored(f)) continue;
       const t = readText(abs(f));
-      if (t) langs[lang] = (langs[lang] || 0) + t.split('\n').filter(l => l.trim()).length;
+      if (!t) continue;
+      const lines = t.split('\n').filter(l => l.trim()).length;
+      langs[lang] = (langs[lang] || 0) + lines;
+      if (!NOT_CODE.has(lang)) code.push({ path: f, lang, lines });
     }
-    const rows = Object.entries(langs).sort((a, b) => b[1] - a[1]);
-    if (writeCsv(dataDir, 'languages.csv', ['language', 'lines'], rows) >= 2)
-      facts.charts.push({ csv: 'data/languages.csv', kind: rows.length <= 6 ? 'pie' : 'bar', x: 'language', y: 'lines', title: 'Lines of code by language' });
+    writeCsv(dataDir, 'languages.csv', ['language', 'lines'], Object.entries(langs).sort((a, b) => b[1] - a[1])); // not charted
+    if (code.length) facts.code = codeFacts(code, files, abs);
   });
 
   for (const f of files) safe(f, () => {
     const ext = path.extname(f).toLowerCase();
     if (IMG_EXT.has(ext)) {
-      if (facts.images.length >= MAX_IMAGES) return;
+      if (facts.images.length >= MAX_IMAGES || vendored(f)) return;
       const id = 'img' + (facts.images.length + 1);
       // tectonic renders 16-bit PNGs blank with no error; re-encode those to 8-bit JPEG (sips = macOS only)
       const is16 = ext === '.png' && fs.readFileSync(abs(f)).subarray(24, 25)[0] === 16;

@@ -51,11 +51,11 @@ inline PDF + .tex   ◀──GET─── serve main.pdf                ◀─�
 
 ```bash
 claude -p "<job instructions>" --output-format stream-json --verbose \
-  --allowedTools "Read,Write,Edit,Bash(tectonic:*),Skill"
+  --allowedTools "Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill"
 ```
 
 - Runs with `cwd` set to `jobs/<id>/`, so project skills come from the repo's `.claude/skills/`.
-- Tools are locked down: no general shell on uploaded content.
+- Tools are locked down: no general shell on uploaded content. `Write(./**)`/`Edit(./**)` are path rules relative to the cwd: tested with `claude -p`, a Write to `../escape.txt` or `/tmp/x` is denied while `main.tex` and `template/x.sty` work (bare `Write` allowed the escape).
 - Each run takes roughly 1–3 min, since it may compile and fix several times. The UI streams each step so the wait looks like progress.
 - Confirmed: Claude Code 2.1.287 supports `-p`, `--output-format`, `--json-schema` and `--allowedTools`.
 
@@ -79,13 +79,13 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 
 | Input | Parsing | Output CSVs / charts |
 |---|---|---|
-| git history (`git log --numstat`) | Commits/day, lines added and removed, most-edited files, hour of day, feat/fix/docs ratio from messages | commits over time (line), work-hour heatmap, top files (bar), commit types (pie) |
+| git history (`git log --numstat`) | Commits/day, milestones, lines added/removed, most-edited files, hour of day, commit types; vendored paths excluded | milestones in facts; commits/day as timeline backdrop only; the rest as CSVs, not charts |
 | `.log`, terminal output | Regex for timestamps (ISO, syslog, `[HH:MM:SS]`) and ERROR/WARN/INFO levels. Group repeated errors by replacing numbers, hex and IDs with placeholders | errors over time, top 5 recurring errors (bar) |
 | CSV / JSON (arrays of objects) | Detect each column's type: date / number / category | chart chosen by the rules below |
 | `.md`, `.txt` notes | Passed through raw (truncated) | none |
 | images | Copied into the job and given IDs | placed and captioned by Claude |
 | `.zip` | Unzipped by the server into `input/`, then each file goes through the rows above | (per file) |
-| GitHub repo / any repo folder | `git log` from the repo; README and `package.json`-style manifests passed through as notes; lines of code per language from file extensions | everything from the git row, plus language breakdown (pie) |
+| GitHub repo / any repo folder | `git log` from the repo; README and `package.json`-style manifests passed through as notes; lines of code per language from file extensions | everything from the git row; `languages.csv` written but not charted |
 
 **Chart picker:**
 - date + number → line
@@ -103,7 +103,7 @@ Dependencies: none for the server. Chart.js isn't needed, since charts are pgfpl
 
 **Questions form** (fixed, not a Claude call — deterministic for the demo, no extra wait):
 
-1. After upload, the UI always shows 3 optional questions: *What problem does it solve and who is it for?*, *What did you learn / what was hard?*, *What's next?*
+1. After upload, the UI always shows 4 optional questions: *What problem does it solve and who is it for?*, *What result are you proudest of, and how did you measure it?*, *What did you learn / what was hard?*, *What's next?*
 2. Answers are saved as `input/answers.md` and treated as notes. Blank answers are fine.
 3. If a slot is still empty, Claude leaves it out; it never makes up facts.
 4. Upgrade later (only if time): a `claude -p --json-schema` gap check that asks only for what's missing, defaulting to "enough" on timeout.
@@ -214,12 +214,12 @@ main.tex/.pdf   written by Claude
 
 **`node collect.js <jobDir>`** (also `module.exports = { collect }`, `collect(jobDir)` returns facts). Reads `input/**`, writes `data/` + `images/` + `facts.json`. Exit 0 even if inputs are thin.
 
-**CSV format:** header row, comma separated, values with commas quoted, numbers plain. Fixed names:
-- `commits_per_day.csv` date,commits,added,removed (date = YYYY-MM-DD)
-- `commit_hours.csv` hour,commits (0–23, all 24 rows)
-- `top_files.csv` file,changes (top 10)
-- `commit_types.csv` type,count (feat/fix/docs/refactor/test/chore/other)
-- `languages.csv` language,lines
+**CSV format:** header row, comma separated, commas/quotes/newlines stripped from cells (pgfplots ignores CSV quoting), numbers plain. Fixed names:
+- `commits_per_day.csv` date,commits,added,removed (date = YYYY-MM-DD). Charted only as the timeline backdrop.
+- `commit_hours.csv` hour,commits (0–23, all 24 rows). Written, not listed in `charts`.
+- `top_files.csv` file,changes (top 10). Written, not listed in `charts`.
+- `commit_types.csv` type,count (feat/fix/docs/refactor/test/chore/other). Written, not listed in `charts`.
+- `languages.csv` language,lines. Written, not listed in `charts`.
 - `errors_over_time.csv` bucket,errors,warnings
 - `top_errors.csv` error,count (top 5, normalized pattern)
 - user CSV/JSON tables: `table_<slug>.csv`
@@ -228,15 +228,23 @@ main.tex/.pdf   written by Claude
 ```json
 {
   "project": {"name": "", "readme": "first ~4000 chars or null"},
-  "repo": {"commits": 0, "authors": [], "firstDate": "", "lastDate": "", "linesAdded": 0, "linesRemoved": 0} | null,
+  "repo": {"commits": 0, "authors": [], "firstDate": "", "lastDate": "", "activeDays": 0, "days": 0,
+           "milestones": [{"date": "YYYY-MM-DD", "message": "commit subject"}],
+           "appendix": {"linesAdded": 0, "linesRemoved": 0}} | null,
   "logs": {"lines": 0, "errors": 0, "warnings": 0} | null,
+  "code": {"files": [{"path": "input/x/server.py", "lang": "Python", "lines": 38}], "entry": ["input/x/server.py"]} | null,
   "charts": [{"csv": "data/commits_per_day.csv", "kind": "line|bar|pie|hist|heatmap", "x": "date", "y": "commits", "title": "Commits per day"}],
   "notes": [{"file": "input/notes.md", "text": "truncated ~6000 chars"}],
   "answers": "contents of input/answers.md or null",
   "images": [{"id": "img1", "file": "images/img1.png", "original": "input/shot.png"}]
 }
 ```
-Only emit a chart when its CSV has ≥ 2 data rows.
+Only emit a chart when its CSV has ≥ 2 data rows. `charts` holds only `commits_per_day` (timeline backdrop), `errors_over_time`, `top_errors` and user `table_*` charts; LOC, commit counts and commit history are not quality metrics, so the other git CSVs stay out of it.
+
+**Vendored code is not the project.** Paths under `node_modules/`, `vendor/`, `dist/`, `build/`, `.claude/skills/` (and other build dirs), lockfiles and minified/map files are left out of `languages.csv`, `top_files.csv` and line counts. Inside a repo, gitignored files (`git ls-files --others --ignored --exclude-standard`, e.g. a `jobs/` folder of clones) are skipped entirely, and a `.git` nested inside another repo is not read. A commit that only touched vendored paths doesn't count towards `commits`, `firstDate`, `authors` or milestones (a commit to the repo's own `.claude/skills/` still does).
+- `repo.authors`: authors with ≥ 2 counted commits, or all of them if there are < 5 commits.
+- `code.files`: ≤ 40 source files (not docs/config, not vendored), entry points first, then by size, tests last. `code.entry`: ≤ 8 likely entry points: files a manifest names (package.json main/bin/scripts, pyproject scripts), names like main/app/server/index/cli/__main__/client, then the largest non-test files. Claude reads these when the README and notes are thin.
+- `repo.milestones`: ≤ 8, chronological. The first commit, tagged commits, then the largest feat/add commits (by lines changed) spread over equal time windows of the span.
 
 **Claude call** (server, cwd = `jobs/<id>/`):
 ```
