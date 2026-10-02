@@ -1,0 +1,29 @@
+% devreport-metropolis: the metropolis Beamer theme (CTAN, in the tectonic bundle) on the shared dr* interface. Slides only.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-metropolis}[2026/10/02 devreport adapter for metropolis]
+
+\usetheme[progressbar=frametitle,numbering=fraction,sectionpage=none]{metropolis}
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
+% type scale (the rest keeps devreport-core's defaults)
+\renewcommand{\drTitle}{\Large}
+\renewcommand{\drH}{\large}
+
+% metropolis looks up Fira by system name; load it from the bundle by file so it never falls back
+\setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Regular,ItalicFont=*-LightItalic,BoldItalicFont=*-Italic]
+\setmainfont{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Regular,ItalicFont=*-LightItalic,BoldItalicFont=*-Italic]
+\setmonofont{FiraMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.9]
+\newfontfamily\drNumFam{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Regular,Numbers=Lining]
+\renewcommand{\drNumFont}{\drNumFam}
+
+% metropolis palette: dark teal ink, orange accent
+\definecolor{drBg}{HTML}{FAFAFA}
+\definecolor{drPanel}{HTML}{EDEFF0}
+\definecolor{drInk}{HTML}{23373B}
+\definecolor{drMuted}{HTML}{6E7F82}
+\definecolor{drGrid}{HTML}{E2E6E7}
+\definecolor{drAccent}{HTML}{EB811B}
+\definecolor{drAccentB}{HTML}{23373B}
+\definecolor{drAccentC}{HTML}{14B03D}
+\definecolor{drAccentD}{HTML}{604C38}
+\definecolor{drAccentE}{HTML}{8AA6AC}
+\endinput

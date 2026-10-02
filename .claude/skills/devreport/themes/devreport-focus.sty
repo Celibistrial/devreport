@@ -1,0 +1,35 @@
+% devreport-focus: the focus Beamer theme (CTAN, GPL-3.0) on the shared dr* interface. Slides only.
+% focus is newer than the tectonic bundle, so it is vendored in vendor/focus/ (see its LICENSE.md).
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-focus}[2026/10/02 devreport adapter for focus]
+
+\def\input@path{{../../.claude/skills/devreport/themes/vendor/focus/}}
+% nofirafonts: its FiraSans/firamath packages are pdfLaTeX-first; fontspec loads Fira below instead
+\usetheme[numbering=progressbar,nofirafonts]{focus}
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
+% type scale (the rest keeps devreport-core's defaults)
+\renewcommand{\drTitle}{\huge}
+\renewcommand{\drH}{\Large}
+\renewcommand{\drLead}{\small}% focus gives the subtitle one short box, so long subtitles stay small
+
+\setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Book,BoldFont=*-SemiBold,ItalicFont=*-BookItalic,BoldItalicFont=*-SemiBoldItalic]
+\setmainfont{FiraSans}[Extension=.otf,UprightFont=*-Book,BoldFont=*-SemiBold,ItalicFont=*-BookItalic,BoldItalicFont=*-SemiBoldItalic]
+\setmonofont{FiraMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.9]
+\newfontfamily\drNumFam{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-SemiBold,Numbers=Lining]
+\renewcommand{\drNumFont}{\drNumFam}
+
+% focus: the theme's own charcoal and light grey, with a deep blue main colour as its README suggests
+\definecolor{main}{HTML}{1F3A5F}
+\definecolor{background}{HTML}{F4F4F2}
+\definecolor{drBg}{HTML}{F4F4F2}
+\definecolor{drPanel}{HTML}{E6E8EC}
+\definecolor{drInk}{HTML}{1F2A37}
+\definecolor{drMuted}{HTML}{6B7280}
+\definecolor{drGrid}{HTML}{DADDE2}
+\definecolor{drAccent}{HTML}{1F3A5F}
+\definecolor{drAccentB}{HTML}{E07A1F}
+\definecolor{drAccentC}{HTML}{B40000}
+\definecolor{drAccentD}{HTML}{3C8D5A}
+\definecolor{drAccentE}{HTML}{8C6BB1}
+\setbeamerfont{subtitle}{shape=\upshape}% small caps made long subtitles too wide
+\endinput

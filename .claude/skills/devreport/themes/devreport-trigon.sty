@@ -1,0 +1,45 @@
+% devreport-trigon: the trigon Beamer theme (CTAN, in the tectonic bundle) on the shared dr* interface. Slides only.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-trigon}[2026/10/02 devreport adapter for trigon]
+
+\usetheme[usesourcefonts=false,numbering=fraction]{trigon}
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
+% type scale (the rest keeps devreport-core's defaults)
+\renewcommand{\drTitle}{\Large}
+\renewcommand{\drH}{\Large}
+
+\setsansfont{SourceSansPro}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Semibold,ItalicFont=*-RegularIt,BoldItalicFont=*-SemiboldIt]
+\setmainfont{SourceSansPro}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Semibold,ItalicFont=*-RegularIt,BoldItalicFont=*-SemiboldIt]
+\setmonofont{FiraMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.88]
+\newfontfamily\drNumFam{SourceSansPro}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Semibold,Numbers=Lining]
+\renewcommand{\drNumFont}{\drNumFam}
+
+% trigon palette: green-blue, orange, yellow on white
+\definecolor{drBg}{HTML}{FFFFFF}
+\definecolor{drPanel}{HTML}{E6E6E1}
+\definecolor{drInk}{HTML}{232931}
+\definecolor{drMuted}{HTML}{7A7F86}
+\definecolor{drGrid}{HTML}{E6E6E1}
+\definecolor{drAccent}{HTML}{00707F}
+\definecolor{drAccentB}{HTML}{F07F3C}
+\definecolor{drAccentC}{HTML}{F8AA00}
+\definecolor{drAccentD}{HTML}{5FA4B0}
+\definecolor{drAccentE}{HTML}{C6C0B4}
+% trigon draws its triangles only through its own \titleframe; main.tex uses a plain \titlepage frame,
+% so the title frame (frame 1) gets the big-triangle title background and every other frame the small corner triangle
+\setbeamertemplate{title page}[titlebigimage]
+\setbeamertemplate{background}{%
+  \begin{tikzpicture}
+    \useasboundingbox (0,0) rectangle(\the\paperwidth,\the\paperheight);
+    \ifnum\c@framenumber=1
+      \begin{scope}[blend group=multiply]
+        \path[fill=tTheme]\leftTriangle{0.5\paperwidth}{0};
+        \topColorTriangle{0.73\paperwidth}{0.70\paperheight}{tGrey!30!tBg};
+        \leftColorTriangle{0.73\paperwidth}{0.70\paperheight}{tTheme}
+      \end{scope}
+      \path[fill=tBg]\rightTriangle{0.45\paperwidth}{\the\paperheight};
+    \else
+      \begin{scope}[blend group=multiply]\leftColorTriangle{0.62\paperwidth}{0}{tGrey!30!tBg}\end{scope}
+    \fi
+  \end{tikzpicture}}
+\endinput

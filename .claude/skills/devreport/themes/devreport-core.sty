@@ -1,0 +1,105 @@
+% devreport-core: the shared dr* interface for the slides-only adapters (metropolis, moloch, focus, trigon, madrid).
+% The adapter loads its Beamer theme, then this file, then sets fonts and the dr* colours.
+% Paper and Midnight define the same interface inline, so main.tex never knows which theme it got.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-core}[2026/10/02 devreport shared macros]
+
+\RequirePackage{amssymb}
+\RequirePackage{fontspec}
+\RequirePackage{xcolor}
+\RequirePackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+\pgfplotsset{compat=1.18}
+\RequirePackage{pgf-pie}
+\RequirePackage{booktabs}
+\RequirePackage{graphicx}
+\RequirePackage{pgfplotstable}
+
+% ---- palette defaults (each adapter redefines these) ----
+\definecolor{drBg}{HTML}{FFFFFF}
+\definecolor{drPanel}{HTML}{F2F2F2}
+\definecolor{drInk}{HTML}{222222}
+\definecolor{drMuted}{HTML}{777777}
+\definecolor{drGrid}{HTML}{E2E2E2}
+\definecolor{drAccent}{HTML}{EB811B}
+\definecolor{drAccentB}{HTML}{23373B}
+\definecolor{drAccentC}{HTML}{C0392B}
+\definecolor{drAccentD}{HTML}{14B03D}
+\definecolor{drAccentE}{HTML}{8E6CBA}
+
+% ---- type scale: every text size comes from these names; main.tex uses them and never \small, \Large, \fontsize.
+% An adapter \renewcommand's the ones its theme draws differently; the \setbeamerfont calls below route them.
+\newcommand{\drTitle}{\LARGE}%                 title on the title page
+\newcommand{\drLead}{\large}%                  the subtitle line under the title
+\newcommand{\drH}{\Large}%                     frame titles
+\newcommand{\drSub}{\normalsize}%              frame subtitles, block titles
+\newcommand{\drBody}{\normalsize}%             body text, bullets at every level
+\newcommand{\drSmall}{\footnotesize}%          chart text
+\newcommand{\drCaption}{\scriptsize}%          captions, footline, stat-tile labels, numbers on bars
+\newcommand{\drStat}{\fontsize{22}{24}\selectfont}% big stat-tile numbers
+
+% ---- hooks an adapter may \renewcommand ----
+\newcommand{\drNumFont}{\sffamily}                       % big KPI numbers
+\newcommand{\drKpiLabel}[1]{{\sffamily\drCaption\color{drMuted}\MakeUppercase{#1}}}
+\newcommand{\drPieNum}{\color{white}\bfseries}           % numbers inside pie slices
+\newcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drGrid}
+
+% ---- charts ----
+\pgfplotscreateplotcyclelist{devreport}{%
+  {drAccent,mark=*,mark options={fill=drAccent}},
+  {drAccentB,mark=square*,mark options={fill=drAccentB}},
+  {drAccentC,mark=triangle*,mark options={fill=drAccentC}},
+  {drAccentD,mark=diamond*,mark options={fill=drAccentD}}}
+\pgfplotscreateplotcyclelist{devreportbar}{{drAccent,fill=drAccent},{drAccentB,fill=drAccentB},{drAccentC,fill=drAccentC},{drAccentD,fill=drAccentD}}
+\pgfplotsset{
+  every axis/.append style={
+    font=\sffamily\drSmall, cycle list name=devreport,
+    axis line style={drMuted, line width=0.4pt}, tick style={drMuted},
+    axis x line*=bottom, axis y line*=left,
+    ymajorgrids, grid style={drGrid, line width=0.4pt},
+    every axis label/.append style={drMuted},
+    tick label style={drInk}, title style={font=\sffamily\drSmall, drInk},
+    every node near coord/.append style={font=\drCaption, drMuted},
+    legend style={draw=none, fill=none, text=drInk, font=\sffamily\drCaption},
+    width=0.9\linewidth, height=0.66\textheight, scaled y ticks=false,
+    enlarge x limits=0.04,
+  },
+  every axis plot/.append style={line width=1.2pt, mark size=1.6pt},
+  drbar/.style={ybar, cycle list name=devreportbar, bar width=12pt, every axis plot/.append style={fill opacity=0.9, draw=none}},
+  drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, enlarge x limits={upper,value=0.1}, yticklabel style={font=\ttfamily\drCaption}, every axis plot/.append style={draw=none}},
+}
+% \drsafecats: make _ # & $ ^ % ~ printable before reading CSV labels (use inside a group)
+\newcommand{\drsafecats}{\catcode`\_=12 \catcode`\#=12 \catcode`\&=12 \catcode`\$=12 \catcode`\^=12 \catcode`\%=12 \catcode`\~=12 }
+% \drpie[pgf-pie options]{csv}{label column}{value column}: pie read from a CSV, no typed numbers
+\newcommand{\drpie}[4][]{\begingroup\drsafecats
+  \pgfplotstableread[col sep=comma]{#2}\drPieTable
+  \pgfplotstablegetrowsof{\drPieTable}\pgfmathtruncatemacro\drN{\pgfplotsretval-1}%
+  \gdef\drPieList{}%
+  \foreach \i in {0,...,\drN}{%
+    \pgfplotstablegetelem{\i}{#4}\of\drPieTable\let\drV\pgfplotsretval
+    \pgfplotstablegetelem{\i}{#3}\of\drPieTable\let\drL\pgfplotsretval
+    \ifx\drPieList\empty\xdef\drPieList{\drV/\unexpanded\expandafter{\drL}}%
+    \else\xdef\drPieList{\unexpanded\expandafter{\drPieList},\drV/\unexpanded\expandafter{\drL}}\fi}%
+  \begin{tikzpicture}\edef\x{\noexpand\pie[sum=auto,text=legend,radius=2.1,color={\drPieColors},before number={\noexpand\drPieNum},#1]{\unexpanded\expandafter{\drPieList}}}\x\end{tikzpicture}\endgroup}
+
+% ---- KPI tile: \drkpi{1,204}{users} ----
+\newcommand{\drkpi}[2]{%
+  \begin{minipage}[t]{0.23\linewidth}\centering
+  {\drNumFont\drStat\color{drAccent}#1}\\[3pt]
+  \drKpiLabel{#2}\end{minipage}}
+
+% ---- beamer bits every adapter wants ----
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{caption}[numbered]
+\setbeamerfont{title}{size=\drTitle}
+\setbeamerfont{subtitle}{size=\drLead}
+\setbeamerfont{frametitle}{size=\drH}
+\setbeamerfont{framesubtitle}{size=\drSub}
+\setbeamerfont{block title}{size=\drSub}
+\setbeamerfont{itemize/enumerate body}{size=\drBody}
+\setbeamerfont{itemize/enumerate subbody}{size=\drBody}
+\setbeamerfont{itemize/enumerate subsubbody}{size=\drBody}
+\setbeamerfont{caption}{size=\drCaption}
+\setbeamerfont{footline}{size=\drCaption}
+\setbeamerfont{page number in head/foot}{size=\drCaption}
+\endinput

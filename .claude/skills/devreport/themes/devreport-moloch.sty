@@ -1,0 +1,35 @@
+% devreport-moloch: moloch (the maintained metropolis fork, CTAN, CC BY-SA 4.0), dark variant, on the shared dr* interface. Slides only.
+% moloch is newer than the tectonic bundle, so it is vendored in vendor/moloch/ (see its LICENSE).
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-moloch}[2026/10/02 devreport adapter for moloch]
+
+\def\input@path{{../../.claude/skills/devreport/themes/vendor/moloch/}}
+\usetheme[colortheme variant=dark,progressbar=frametitle,numbering=fraction,sectionpage=none]{moloch}
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
+% type scale (the rest keeps devreport-core's defaults)
+\renewcommand{\drTitle}{\Large}
+\renewcommand{\drH}{\large}
+
+\setsansfont{IBMPlexSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-SemiBold,ItalicFont=*-LightItalic,BoldItalicFont=*-SemiBoldItalic]
+\setmainfont{IBMPlexSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-SemiBold,ItalicFont=*-LightItalic,BoldItalicFont=*-SemiBoldItalic]
+\setmonofont{IBMPlexMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.9]
+\newfontfamily\drNumFam{IBMPlexSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Medium,Numbers=Lining]
+\renewcommand{\drNumFont}{\drNumFam}
+
+% moloch dark: deep teal ground, warm orange and mint accents
+\definecolor{drBg}{HTML}{23373B}
+\definecolor{drPanel}{HTML}{2C4448}
+\definecolor{drBar}{HTML}{182729}
+\definecolor{drInk}{HTML}{EDEDED}
+\definecolor{drMuted}{HTML}{9DB0B3}
+\definecolor{drGrid}{HTML}{36504F}
+\definecolor{drAccent}{HTML}{EF9F76}
+\definecolor{drAccentB}{HTML}{5ABFB5}
+\definecolor{drAccentC}{HTML}{F3C4A0}
+\definecolor{drAccentD}{HTML}{A9C7EE}
+\definecolor{drAccentE}{HTML}{D7A9E3}
+% a frame title bar a shade darker than the slide, instead of moloch dark's light grey bar
+\setbeamercolor{frametitle}{fg=drInk,bg=drBar}
+\renewcommand{\drPieNum}{\color{drBg}\bfseries}
+\renewcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drInk}
+\endinput

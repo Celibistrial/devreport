@@ -30,6 +30,25 @@
 \setsansfont{FiraSans}[Extension=.otf,UprightFont=*-Light,BoldFont=*-Medium,ItalicFont=*-LightItalic,BoldItalicFont=*-MediumItalic,Scale=0.92]
 \setmonofont{FiraMono}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,Scale=0.86]
 
+% ---- type scale: every text size comes from these names; main.tex uses them and never \small, \Large, \fontsize ----
+\makeatletter
+\@ifclassloaded{beamer}{%
+  \newcommand{\drTitle}{\fontsize{30}{32}\selectfont}% title on the title page
+  \newcommand{\drH}{\Large}%                     frame titles
+  \newcommand{\drSub}{\normalsize}%              frame subtitles, block titles
+  \newcommand{\drCaption}{\scriptsize}%          captions, footline, stat-tile labels, numbers on bars
+}{%
+  \newcommand{\drTitle}{\fontsize{34}{38}\selectfont}% title on the first page
+  \newcommand{\drH}{\Large}%                     sections
+  \newcommand{\drSub}{\small}%                   subsections
+  \newcommand{\drCaption}{\small}%               figure captions, stat-tile labels
+}
+\makeatother
+\newcommand{\drLead}{\large}%                    the subtitle line under the title
+\newcommand{\drBody}{\normalsize}%               body text, bullets at every level
+\newcommand{\drSmall}{\footnotesize}%            chart text, header/footer lines
+\newcommand{\drStat}{\fontsize{22}{24}\selectfont}% big stat-tile numbers
+
 % ---- charts ----
 \pgfplotscreateplotcyclelist{devreport}{%
   {drAccent,mark=*,mark options={fill=drAccent}},
@@ -39,19 +58,19 @@
 \pgfplotscreateplotcyclelist{devreportbar}{{drAccent,fill=drAccent},{drAccentB,fill=drAccentB},{drAccentC,fill=drAccentC},{drAccentD,fill=drAccentD}}
 \pgfplotsset{
   every axis/.append style={
-    font=\sffamily\footnotesize, cycle list name=devreport,
+    font=\sffamily\drSmall, cycle list name=devreport,
     axis line style={drMuted, line width=0.4pt}, tick style={drMuted},
     axis x line*=bottom, axis y line*=left,
     ymajorgrids, grid style={drGrid, line width=0.4pt},
     every axis label/.append style={drMuted},
-    tick label style={drInk}, title style={font=\rmfamily\itshape\small, drInk},
-    legend style={draw=none, fill=none, font=\sffamily\scriptsize},
+    tick label style={drInk}, every node near coord/.append style={font=\drCaption, drMuted}, title style={font=\rmfamily\itshape\drSmall, drInk},
+    legend style={draw=none, fill=none, font=\sffamily\drCaption},
     width=0.92\linewidth, height=0.42\linewidth, scaled y ticks=false,
     enlarge x limits=0.04,
   },
   every axis plot/.append style={line width=1.1pt, mark size=1.6pt},
   drbar/.style={ybar, cycle list name=devreportbar, bar width=12pt, every axis plot/.append style={fill opacity=0.9, draw=none}},
-  drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, every axis plot/.append style={draw=none}},
+  drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, enlarge x limits={upper,value=0.1}, yticklabel style={font=\ttfamily\drCaption}, every axis plot/.append style={draw=none}},
 }
 \newcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drGrid}
 \RequirePackage{pgfplotstable}
@@ -72,8 +91,8 @@
 % ---- KPI tile: \drkpi{1,204}{commits} ----
 \newcommand{\drkpi}[2]{%
   \begin{minipage}[t]{0.23\linewidth}\centering
-  {\drNumFont\fontsize{22}{24}\selectfont\color{drAccent}#1}\\[2pt]
-  {\sffamily\scriptsize\color{drMuted}\MakeUppercase{#2}}\end{minipage}}
+  {\drNumFont\drStat\color{drAccent}#1}\\[2pt]
+  {\sffamily\drCaption\color{drMuted}\MakeUppercase{#2}}\end{minipage}}
 
 \makeatletter
 \@ifclassloaded{beamer}{%
@@ -90,26 +109,32 @@
   \setbeamercolor{block title}{fg=drAccent,bg=drPanel}
   \setbeamercolor{block body}{fg=drInk,bg=drPanel}
   \setbeamercolor{caption name}{fg=drAccent}
-  \setbeamerfont{caption}{size=\scriptsize}
+  \setbeamerfont{caption}{size=\drCaption}
+  \setbeamerfont{block title}{size=\drSub}
+  \setbeamerfont{framesubtitle}{size=\drSub}
+  \setbeamerfont{footline}{size=\drCaption}
+  \setbeamerfont{itemize/enumerate body}{size=\drBody}
+  \setbeamerfont{itemize/enumerate subbody}{size=\drBody}
+  \setbeamerfont{itemize/enumerate subsubbody}{size=\drBody}
   \setbeamertemplate{caption}[numbered]
   \setbeamertemplate{itemize item}{\color{drAccent}\raisebox{0.15ex}{\scriptsize$\blacksquare$}}
   \setbeamertemplate{itemize subitem}{\color{drAccentB}\textendash}
   \setbeamertemplate{enumerate item}{\color{drAccent}\drNumFont\insertenumlabel.}
-  \setbeamerfont{frametitle}{size=\Large,shape=\itshape}
+  \setbeamerfont{frametitle}{size=\drH,shape=\itshape}
   \setbeamertemplate{frametitle}{%
     \vskip1.2em\hskip0.2em{\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par
     \hskip0.2em{\color{drAccent}\rule{2.2em}{1.2pt}}\vskip0.2em}
   \setbeamertemplate{footline}{%
-    \hskip1.2em{\sffamily\tiny\color{drMuted}\MakeUppercase{\insertshorttitle}}\hfill
-    {\drNumFont\scriptsize\color{drAccent}\insertframenumber}\hskip1.2em\vskip0.9em}
+    \hskip1.2em{\sffamily\drCaption\color{drMuted}\MakeUppercase{\insertshorttitle}}\hfill
+    {\drNumFont\drCaption\color{drAccent}\insertframenumber}\hskip1.2em\vskip0.9em}
   \setbeamertemplate{title page}{%
     \vfill
-    {\sffamily\scriptsize\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.6em
-    {\usebeamerfont{title}\fontsize{30}{32}\selectfont\itshape\color{drInk}\inserttitle}\par\vskip0.4em
+    {\sffamily\drCaption\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.6em
+    {\usebeamerfont{title}\drTitle\itshape\color{drInk}\inserttitle}\par\vskip0.4em
     {\color{drAccent}\rule{3em}{1.5pt}}\par\vskip0.8em
-    \ifx\insertsubtitle\@empty\else{\large\color{drMuted}\insertsubtitle}\par\vskip0.8em\fi
-    {\sffamily\footnotesize\color{drInk}\insertauthor}\par
-    {\sffamily\footnotesize\color{drMuted}\insertdate}\par
+    \ifx\insertsubtitle\@empty\else{\drLead\color{drMuted}\insertsubtitle}\par\vskip0.8em\fi
+    {\sffamily\drSmall\color{drInk}\insertauthor}\par
+    {\sffamily\drSmall\color{drMuted}\insertdate}\par
     \vfill}
   \pgfplotsset{every axis/.append style={width=0.9\linewidth, height=0.66\textheight}}
 }{%
@@ -117,10 +142,11 @@
   \RequirePackage[a4paper,margin=2.6cm,top=2.4cm,bottom=2.8cm]{geometry}
   \RequirePackage{pagecolor}
   \pagecolor{drBg}\color{drInk}
-  \RequirePackage[font={small,it},labelfont={sf,bf,color=drAccent,up},labelsep=quad,skip=6pt]{caption}
+  \RequirePackage{caption}\DeclareCaptionFont{drcap}{\drCaption}
+  \captionsetup{font={drcap,it},labelfont={sf,bf,color=drAccent,up},labelsep=quad,skip=6pt}
   \RequirePackage{titlesec}
-  \titleformat{\section}{\Large\itshape\color{drInk}}{\llap{\drNumFont\color{drAccent}\upshape\thesection\hskip0.8em}}{0pt}{}[\vskip-0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}]
-  \titleformat{\subsection}{\sffamily\small\bfseries\color{drAccentB}}{\thesubsection}{0.8em}{\MakeUppercase}
+  \titleformat{\section}{\drH\itshape\color{drInk}}{\llap{\drNumFont\color{drAccent}\upshape\thesection\hskip0.8em}}{0pt}{}[\vskip-0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}]
+  \titleformat{\subsection}{\sffamily\drSub\bfseries\color{drAccentB}}{\thesubsection}{0.8em}{\MakeUppercase}
   \titlespacing*{\section}{0pt}{2.2em}{0.9em}
   \titlespacing*{\subsection}{0pt}{1.4em}{0.4em}
   \RequirePackage{enumitem}
@@ -129,10 +155,10 @@
   \RequirePackage{fancyhdr}
   \pagestyle{fancy}\fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyhead[L]{\sffamily\scriptsize\color{drMuted}\MakeUppercase{\@title}}
-  \fancyhead[R]{\sffamily\scriptsize\color{drMuted}\@date}
-  \fancyfoot[C]{\drNumFont\small\color{drAccent}\thepage}
-  \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\drNumFont\small\color{drAccent}\thepage}}
+  \fancyhead[L]{\sffamily\drSmall\color{drMuted}\MakeUppercase{\@title}}
+  \fancyhead[R]{\sffamily\drSmall\color{drMuted}\@date}
+  \fancyfoot[C]{\drNumFont\drSmall\color{drAccent}\thepage}
+  \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\drNumFont\drSmall\color{drAccent}\thepage}}
   \linespread{1.08}
   \setlength{\parskip}{0.35em}
   \providecommand{\subtitle}[1]{\gdef\@subtitle{#1}}
@@ -140,11 +166,11 @@
   \renewcommand{\maketitle}{%
     \thispagestyle{plain}\begingroup\setlength{\parindent}{0pt}
     \vspace*{1.5em}
-    {\sffamily\scriptsize\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.8em
-    {\fontsize{34}{38}\selectfont\itshape\color{drInk}\@title\par}\vskip0.6em
+    {\sffamily\drCaption\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.8em
+    {\drTitle\itshape\color{drInk}\@title\par}\vskip0.6em
     {\color{drAccent}\rule{3.5em}{1.6pt}}\par\vskip0.8em
-    \ifx\@subtitle\@empty\else{\large\color{drMuted}\@subtitle\par}\vskip0.6em\fi
-    {\sffamily\small\color{drInk}\@author}\hfill{\sffamily\small\color{drMuted}\@date}\par
+    \ifx\@subtitle\@empty\else{\drLead\color{drMuted}\@subtitle\par}\vskip0.6em\fi
+    {\sffamily\drSmall\color{drInk}\@author}\hfill{\sffamily\drSmall\color{drMuted}\@date}\par
     \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\endgroup\vskip1.6em}
   \RequirePackage{hyperref}
   \hypersetup{colorlinks,linkcolor=drAccent,urlcolor=drAccentB,citecolor=drAccent,pdfborder={0 0 0}}

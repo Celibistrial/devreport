@@ -1,0 +1,25 @@
+% devreport-madrid: Beamer's built-in Madrid theme on the shared dr* interface. Slides only.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{devreport-madrid}[2026/10/02 devreport adapter for Madrid]
+
+\usetheme{Madrid}
+\RequirePackage{../../.claude/skills/devreport/themes/devreport-core}
+% type scale (the rest keeps devreport-core's defaults)
+\renewcommand{\drTitle}{\Large}
+\renewcommand{\drH}{\large}
+% Latin Modern stays, so it reads like classic Beamer; only the number face is set
+\newfontfamily\drNumFam{texgyreheros}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,Numbers=Lining]
+\renewcommand{\drNumFont}{\drNumFam}
+
+% Madrid's structure blue (RGB 51,51,179) with its own palette shades
+\definecolor{drBg}{HTML}{FFFFFF}
+\definecolor{drPanel}{HTML}{EBEBF7}
+\definecolor{drInk}{HTML}{1A1A1A}
+\definecolor{drMuted}{HTML}{6F6F80}
+\definecolor{drGrid}{HTML}{E3E3EE}
+\definecolor{drAccent}{HTML}{3333B3}
+\definecolor{drAccentB}{HTML}{E37222}
+\definecolor{drAccentC}{HTML}{C0392B}
+\definecolor{drAccentD}{HTML}{2E8B57}
+\definecolor{drAccentE}{HTML}{8A8AD6}
+\endinput
