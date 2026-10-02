@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regenerate the theme previews from the sample deck/report in themes/sample/.
+# Regenerate the slide theme previews from the sample deck in themes/sample/ (reports have no theme).
 # Needs tectonic and pdftoppm (poppler). Run from anywhere: sh scripts/previews.sh [theme ...]
 set -e
 cd "$(dirname "$0")/.."
@@ -18,7 +18,6 @@ render() { # render <pdf> <name> <width>: large JPEG per page + small PNG thumb 
 for t in ${@:-metropolis moloch focus trigon madrid paper midnight}; do
   printf '\\usepackage{../../%s/devreport-%s}\n' "$T" "$t" > "$W/theme.tex"
   (cd "$W" && tectonic -c minimal main.tex) && render "$W/main.pdf" "$t" 1000
-  case $t in paper|midnight) (cd "$W" && tectonic -c minimal report.tex) && render "$W/report.pdf" "$t-report" 800 ;; esac
   echo "$t done"
 done
 rm -rf "$W"

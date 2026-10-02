@@ -6,7 +6,7 @@ Drop in dev logs, notes, a CSV, screenshots, a `.zip`, or just paste a GitHub li
 
 It's for student builders who have to write up a hackathon, coursework or side project and would rather keep building.
 
-Samples: [report (Paper theme)](samples/report-paper.pdf) · [slides (Midnight theme)](samples/slides-midnight.pdf)
+Samples: [report](samples/report.pdf) · [slides (Midnight theme)](samples/slides-midnight.pdf)
 
 ## How it works
 
@@ -25,7 +25,8 @@ upload / zip / GitHub link
 - **Length is a target.** Pick 5–25 slides or 2–10 pages. Claude aims within one either way, goes shorter rather than pad, and cuts the least important sections when there's too much.
 - **Locked-down agent.** Claude Code runs headless with only `Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill`: no general shell, and it can only write inside the job folder. Uploaded content is treated as data, never instructions.
 - **Safe intake.** Zips are size-checked before extracting (zip bombs), path-escaping entries are rejected, symlinks are deleted. GitHub URLs are validated and cloned without a shell, with a timeout.
-- **Themes, switchable after the build.** Paper (serif, academic) and Midnight (dark, neon, terminal) work for reports and slides; slides also get five popular Beamer themes: Metropolis, Moloch (its maintained fork, dark variant), Focus, Trigon and the built-in Madrid. Each theme is a small adapter `.sty` exposing the same `dr*` colours, chart styles, stat tiles and type sizes, and `main.tex` only says `\input{theme.tex}`. So once a deck exists, clicking another theme rewrites that one line and reruns `tectonic` (about 1.2 s, no Claude); each compiled theme is cached, so switching back is instant.
+- **Reports look like a research paper.** Every report uses one standard LaTeX article layout (`devreport-article.sty`): 11pt Latin Modern, 1in margins, title, abstract, numbered sections, booktabs tables and numbered, referenced figures with black-and-grey pgfplots charts. No theme to pick.
+- **Slide themes, switchable after the build.** Paper (serif, academic), Midnight (dark, neon, terminal) and five popular Beamer themes: Metropolis, Moloch (its maintained fork, dark variant), Focus, Trigon and the built-in Madrid. Each theme is a small adapter `.sty` exposing the same `dr*` colours, chart styles, stat tiles and type sizes, and `main.tex` only says `\input{theme.tex}`. So once a deck exists, clicking another theme rewrites that one line and reruns `tectonic` (about 1.2 s, no Claude); each compiled theme is cached, so switching back is instant. Reports don't switch.
 - **Your own PowerPoint template (slides).** Upload a `.pptx` and `pptx.js` pulls out its colour palette, heading/body fonts, logo, title/body box positions and preview thumbnail into `template/template.json`. Claude writes a matching Beamer theme from that, compiles a test slide, compares it with the thumbnail and adjusts. Sample: [slides from a custom template](samples/slides-custom-template.pdf).
 
 ## Setup
