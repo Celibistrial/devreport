@@ -889,12 +889,12 @@ function listen(id, shown = 0, retries = 0) {
     addStep('done', d.version > 1 ? `v${d.version} ready` : 'PDF ready', d.t);
     if (revising()) { // swap the new PDF in on the same page
       revBusy(false); revClear(); revHint(); $('#revgo').textContent = 'Apply changes';
-      V.fade = true; showDone(d); toast(`Updated to v${d.version}`); $('#donemsg').textContent = `Revised in ${mmss(d.t - t0)}.`;
+      V.fade = true; showDone(d); toast(`Updated to v${d.version}`); $('#donemsg').textContent = 'Revised.';
       return;
     }
     setTimeout(() => {
       showDone(d);
-      $('#donemsg').textContent = `${d.version > 1 ? 'Revised' : 'Typeset'}${d.t > t0 ? ` in ${mmss(d.t - t0)}` : ''}.`;
+      $('#donemsg').textContent = d.version > 1 ? 'Revised.' : 'Typeset.';
     }, 600);
   });
   es.addEventListener('failed', (e) => {
