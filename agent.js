@@ -160,7 +160,9 @@ async function main() {
   globalThis.AI_SDK_LOG_WARNINGS = false; // stderr is the server's error tail, keep it for real errors
   const { streamText, tool, isStepCount } = await import('ai');
   const { z } = await import('zod');
-  const wrap = (fn) => async (args) => { try { return await fn(args, jobDir); } catch (e) { return text(e.message, true); } };
+  // one tool at a time, in call order: an edit and a compile in the same step must not race
+  let queue = Promise.resolve();
+  const wrap = (fn) => (args) => (queue = queue.then(async () => { try { return await fn(args, jobDir); } catch (e) { return text(e.message, true); } }));
   const specs = toolSpecs(z), system = systemPrompt(jobDir);
   const abort = new AbortController(); // the server's timeout SIGTERMs us: stop the model (and claude-code's subprocess) too
   process.on('SIGTERM', () => { abort.abort(); setTimeout(() => process.exit(1), 3000); });
@@ -201,7 +203,7 @@ async function main() {
   const messages = provider === 'claude-code' && saved?.claudeSession ? [userMsg] : [...history, userMsg];
 
   out({ type: 'system', subtype: 'init', session_id: sessionId, model: spec, cwd: jobDir });
-  let note = '', lastText = '', calls = 0, steps = 0, failed = null, claudeSession = saved?.claudeSession, turns;
+  let note = '', lastText = '', calls = 0, turns = 1, inCalls = false, failed = null, claudeSession = saved?.claudeSession; // turns: model replies (a batch of tool calls, then the final one)
   const name = (n) => (prefix && n.startsWith(prefix) ? n.slice(prefix.length) : n);
   const flushText = () => { if (note.trim()) { out({ type: 'assistant', message: { content: [{ type: 'text', text: note }] } }); lastText = note; } note = ''; };
   const result = streamText({ model, messages, abortSignal: abort.signal, ...extra });
@@ -211,16 +213,16 @@ async function main() {
         case 'text-delta': note += part.text; break;
         case 'tool-call':
           flushText(); calls++;
+          if (!inCalls) { turns++; inCalls = true; }
           out({ type: 'assistant', message: { content: [{ type: 'tool_use', id: part.toolCallId, name: name(part.toolName), input: part.input }] } });
           break;
         case 'tool-result': case 'tool-error':
+          inCalls = false;
           out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: part.toolCallId, is_error: part.type === 'tool-error' || !!part.output?.isError }] } });
           break;
         case 'finish-step': {
-          flushText(); steps++;
-          const cc = part.providerMetadata?.['claude-code'];
-          if (cc?.sessionId) claudeSession = cc.sessionId;
-          if (cc?.numTurns) turns = cc.numTurns;
+          flushText();
+          claudeSession = part.providerMetadata?.['claude-code']?.sessionId || claudeSession;
           break;
         }
         case 'error': failed = part.error; break;
@@ -238,7 +240,7 @@ async function main() {
   const msg = failed && String(failed.message || failed);
   if (msg) console.error(msg);
   out({ type: 'result', subtype: failed ? 'error' : 'success', is_error: !!failed, result: failed ? msg : lastText, session_id: sessionId,
-    num_turns: turns || steps, tool_calls: calls, duration_ms: Date.now() - started });
+    num_turns: turns, tool_calls: calls, duration_ms: Date.now() - started });
   process.exit(failed ? 1 : 0);
 }
 
