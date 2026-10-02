@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>devreport</title>
 <meta name="description" content="Turn dev logs, notes and git history into a typeset LaTeX report or slide deck.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);
   background-image:radial-gradient(rgba(22,19,15,.035) 1px,transparent 1px);background-size:4px 4px}
 button,input,textarea{font:inherit;color:inherit}
-.wrap{max-width:1260px;margin:0 auto;padding:0 28px}
+.wrap{max-width:1260px;margin:0 auto;padding:0 max(28px,env(safe-area-inset-right)) 0 max(28px,env(safe-area-inset-left))}
 
 /* masthead */
 header{border-bottom:1px solid var(--ink);}
@@ -40,9 +40,17 @@ h1 i{color:var(--accent)}
 .lede{max-width:40ch;color:var(--ink2);margin:0;font-size:15.5px}
 
 /* layout */
-main{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;padding:34px 0 64px;align-items:start}
+/* layout: one stage at a time. input = the form; work = the feed (form folds into the summary bar); result = the viewer */
+main{padding:30px 0 64px}
+body:not([data-stage=input]) .hero,body:not([data-stage=input]) #f,body[data-stage=input] .sum,body[data-stage=input] .panel{display:none}
+#f,.sum,.panel{animation:rise .22s ease both}
+body[data-stage=work] :is(.sum,.panel){max-width:780px;margin-left:auto;margin-right:auto}
+body[data-stage=result] .wrap{max-width:1720px}
+@media (min-width:1024px){
+  #f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:56px;align-items:start}
+  .col .sec:last-of-type{border-bottom:0}
+}
 .sec{padding:0 0 26px;margin:0 0 26px;border-bottom:1px solid var(--rule)}
-.sec:last-of-type{border-bottom:0}
 .sec h2{display:flex;align-items:baseline;gap:12px;margin:0 0 14px;font:400 26px/1 var(--serif)}
 .sec h2 small{font:500 11px/1 var(--mono);color:var(--accent);letter-spacing:.06em}
 .sec h2 .opt{margin-left:auto;font:11px/1 var(--mono);color:var(--muted);letter-spacing:.04em}
@@ -159,6 +167,11 @@ textarea:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(22
 textarea::placeholder{color:#b0a693}
 
 .go{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:12px;background:var(--ink);color:var(--paper);padding:17px 20px;font-size:16px;font-weight:500;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+/* below desktop the form is one column and Generate rides along the bottom of the screen */
+@media (max-width:1023px){
+  .col{display:contents}
+  .go{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 10px 26px -8px rgba(22,19,15,.45),0 0 0 4px var(--paper)}
+}
 .go:hover:not(:disabled){background:#000;transform:translateY(-1px);box-shadow:0 6px 18px rgba(22,19,15,.18)}
 .go:disabled{cursor:not-allowed;opacity:.55}
 .go .prog{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.9;width:0;transition:width .2s}
@@ -166,11 +179,18 @@ textarea::placeholder{color:#b0a693}
 .go kbd{position:relative;font:11px var(--mono);opacity:.55;border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:1px 5px}
 form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 
-/* proof panel */
-.panel{position:sticky;top:20px;background:var(--card);border:1px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:8px 8px 0 rgba(22,19,15,.08)}
-.ptop{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--rule);font:12px/1 var(--mono)}
-.ptop .ttl{color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.pill{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:99px;background:var(--rule2);color:var(--ink2)}
+/* summary bar: the collapsed form */
+.sum{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;border:1px solid var(--ink);background:var(--card);border-radius:14px;padding:10px 12px 10px 18px;margin-bottom:16px}
+.sumtxt{flex:1;min-width:0;display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap}
+.sumtxt b{font:400 23px/1.15 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.sumtxt span{font:12px/1.3 var(--mono);color:var(--muted)}
+.jid{font:12px var(--mono);color:var(--muted)}
+.sumbtns{display:flex;gap:8px}
+body:not([data-state=done]) #again{display:none}
+
+/* panel */
+.panel{background:var(--card);border:1px solid var(--ink);border-radius:16px;overflow:clip;box-shadow:8px 8px 0 rgba(22,19,15,.08)}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:99px;background:var(--rule2);color:var(--ink2);font:12px/1 var(--mono);white-space:nowrap}
 .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
 [data-state=uploading] .pill,[data-state=running] .pill{background:#fde6dc;color:var(--accent-ink)}
 [data-state=uploading] .pill::before,[data-state=running] .pill::before{background:var(--accent);animation:blink 1s infinite}
@@ -181,22 +201,12 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 [data-state=failed] .pill{background:#f8dcd3;color:var(--accent-ink)}
 [data-state=failed] .pill::before{background:var(--accent-ink)}
 @keyframes blink{50%{opacity:.25}}
-.pbody{height:min(78vh,820px);min-height:520px;position:relative}
-.view{position:absolute;inset:0;display:none}
-[data-state=idle] .v-idle,[data-state=uploading] .v-feed,[data-state=running] .v-feed,[data-state=waiting] .v-feed,[data-state=failed] .v-feed,[data-state=done] .v-done{display:flex}
-
-/* idle */
-.v-idle{align-items:center;justify-content:center;flex-direction:column;gap:22px;padding:24px;background:linear-gradient(180deg,transparent,rgba(221,211,193,.25))}
-.mock{width:230px;aspect-ratio:1/1.32;background:#fff;border:1px solid var(--rule);border-radius:3px;box-shadow:0 1px 0 var(--rule),0 18px 40px -18px rgba(22,19,15,.3);padding:22px 20px;transform:rotate(-1.5deg)}
-.mock .h{font:italic 22px/1 var(--serif);margin-bottom:6px}
-.mock .k{font:9px var(--mono);color:var(--muted);margin-bottom:12px}
-.mock .ln{height:4px;background:var(--rule2);border-radius:2px;margin-bottom:6px}
-.mock .ch{display:flex;align-items:flex-end;gap:5px;height:58px;margin:14px 0;border-bottom:1px solid var(--ink);padding:0 4px}
-.mock .ch i{flex:1;background:var(--accent);border-radius:1px 1px 0 0;transform-origin:bottom;animation:grow 1.2s cubic-bezier(.2,.8,.2,1) both}
-.mock .ch i:nth-child(odd){background:var(--ink)}
-@keyframes grow{from{transform:scaleY(0)}}
-.v-idle p{margin:0;text-align:center;color:var(--ink2);max-width:36ch;font-size:14px}
-.v-idle p b{font:italic 400 21px/1.2 var(--serif);display:block;color:var(--ink);margin-bottom:4px}
+.pbody{position:relative;display:flex;flex-direction:column;height:max(420px,calc(100dvh - 200px))}
+.view{display:none;flex:1;min-height:0;position:relative}
+[data-state=running] .v-feed,[data-state=waiting] .v-feed,[data-state=failed] .v-feed,[data-state=done] .v-done{display:flex}
+/* waiting: the questions take the page; it scrolls as a whole so the keyboard never hides an answer */
+[data-state=waiting] .pbody{height:auto}
+[data-state=waiting] .feed{flex:none;max-height:min(30dvh,260px)}
 
 /* feed */
 .v-feed{flex-direction:column}
@@ -240,7 +250,34 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 
 /* done */
 .v-done{flex-direction:column}
-.pdfwrap{flex:1;min-height:0;position:relative;display:flex}
+.pdfwrap{flex:1;min-height:0;min-width:0;position:relative;display:flex}
+.side{display:flex;flex-direction:column;min-height:0;background:var(--card)}
+details.log{border-top:1px solid var(--rule)}
+details.log summary{display:flex;align-items:center;gap:8px;min-height:46px;padding:0 16px;font:12px var(--mono);color:var(--ink2);cursor:pointer;list-style:none}
+details.log summary::-webkit-details-marker{display:none}
+details.log summary::before{content:"▸";transition:transform .15s}
+details.log[open] summary::before{transform:rotate(90deg)}
+.log .feed{overflow:visible;padding:0 0 10px}
+.log .feed li{grid-template-columns:40px 24px 1fr;gap:8px;padding:5px 14px;animation:none}
+/* wide: the viewer takes the room, everything else sits in a sidebar; revise is always open there */
+@media (min-width:1024px){
+  body[data-stage=result] .pbody{height:max(520px,calc(100dvh - 196px))}
+  [data-state=done] .v-done{display:grid;grid-template-columns:minmax(0,1fr) 350px}
+  .side{overflow-y:auto;border-left:1px solid var(--rule);scrollbar-width:thin}
+  .side .rev[hidden]{display:block}
+  #revopen{display:none}
+}
+/* narrow: viewer first, sized by the page, then the sidebar stacked below; the page scrolls */
+@media (max-width:1023px){
+  body[data-stage=result] .pbody{height:auto}
+  .pdfwrap{flex:none}
+  .pv[data-mode=slides] .pvstage{flex:none;box-sizing:content-box;aspect-ratio:var(--ar,1.778);max-height:calc(100dvh - 140px)}
+  .pv[data-mode=report] .pvstage{flex:none;height:78dvh}
+  .v-done iframe{min-height:78dvh}
+  .side{border-top:1px solid var(--ink)}
+  .side .tstrip{order:1}
+  .side .log{order:2}
+}
 .v-done iframe{flex:1;border:0;width:100%;background:#525659;transition:opacity .2s}
 /* pdf viewer (pdf.js): slides one at a time + thumbnails, reports as a lazy scroll */
 .pv{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative;background:linear-gradient(180deg,#efe9de,#e8e1d3)}
@@ -287,7 +324,7 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .pvcount{position:absolute;right:14px;bottom:12px;z-index:2;font:500 11.5px/1 var(--mono);font-variant-numeric:tabular-nums;background:var(--ink);color:var(--paper);border-radius:99px;padding:6px 10px;box-shadow:3px 3px 0 rgba(22,19,15,.12);pointer-events:none}
 .pv[data-mode=slides] .pvcount{display:none}
 @container (max-height:300px){.pvnote span{display:none}.pvnote{padding:6px 7px;top:6px;right:6px}}
-.pv[data-mode=slides] .pvstage:fullscreen{background:#000;padding:0}
+.pv[data-mode=slides] .pvstage:fullscreen{background:#000;padding:0;max-height:none;aspect-ratio:auto}
 .pvstage:fullscreen .pvone{box-shadow:none;border-radius:0}
 .pvstage:fullscreen .pvnote{display:none}
 .veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,19,15,.45);backdrop-filter:blur(2px);color:var(--paper);font:italic 22px/1.2 var(--serif);text-align:center;animation:fade .15s ease both}
@@ -295,7 +332,9 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .veil small{display:block;font:12px var(--mono);font-style:normal;opacity:.75;margin-top:6px}
 @keyframes fade{from{opacity:0}}
 /* theme strip: re-typeset the finished PDF in another theme, no Claude involved */
-.tstrip{flex:none;display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:thin;background:var(--card)}
+.tstrip{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:thin;background:var(--card);scroll-snap-type:x proximity;scroll-padding:0 14px}
+.tcell{scroll-snap-align:start}
+@media (min-width:1024px){.tstrip{flex-wrap:wrap;overflow:visible;padding:12px 16px 14px}.side .tstrip .rlab{flex-basis:100%;margin:0 0 2px}.tstrip .tchip{width:69px}}
 .tstrip .rlab{margin:0 4px 0 0;flex:none}
 .tchip{flex:none;width:72px;display:flex;flex-direction:column;gap:5px;border:1px solid var(--rule);background:#fff;border-radius:8px;padding:3px 3px 5px;cursor:pointer;font:500 10.5px/1 var(--mono);color:var(--ink2);text-align:center;position:relative;transition:.15s}
 .tchip:hover:not(:disabled){border-color:#b9ad97;transform:translateY(-1px)}
@@ -310,8 +349,9 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .tmsg{flex:none;margin-left:2px;font:11px/1.3 var(--mono);color:var(--ok);white-space:nowrap}
 .tmsg.err{white-space:normal;width:24ch}
 .tmsg.err{color:var(--accent-ink)}
-.dbar{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-top:1px solid var(--rule)}
-.dbar .msg{font:italic 19px/1.2 var(--serif);margin-right:auto}
+.dbar{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 16px;border-bottom:1px solid var(--rule)}
+.dbar .msg{font:italic 19px/1.2 var(--serif);flex-basis:100%;margin-bottom:2px}
+.dbar .btn{flex:1 1 auto;justify-content:center}
 .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 13px;font:500 13px var(--sans);text-decoration:none;cursor:pointer;transition:.15s}
 .btn:hover{background:var(--ink);color:var(--paper)}
 .btn.solid{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -321,7 +361,7 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .ver{font:500 11px/1 var(--mono);letter-spacing:.04em;background:var(--ink);color:var(--paper);border-radius:5px;padding:4px 6px;vertical-align:3px;margin-right:4px;font-style:normal}
 
 /* revise drawer: slides up between the PDF and the action bar */
-.rev{flex:0 1 auto;min-height:0;max-height:58%;overflow-y:auto;border-top:1px solid var(--ink);background:var(--card);padding:14px 16px 12px;animation:rise .22s ease both}
+.rev{flex:none;border-bottom:1px solid var(--rule);background:var(--card);padding:14px 16px 14px;animation:rise .22s ease both}
 .rev[hidden]{display:none}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
 .rhead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
@@ -347,8 +387,21 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .pg.bad{border-color:var(--accent)}
 .addpg{align-self:flex-start;border:1px dashed #c4b8a2;background:none;border-radius:9px;padding:7px 11px;font:12px var(--mono);color:var(--ink2);cursor:pointer;transition:.15s;margin-top:2px}
 .addpg:hover{border-color:var(--ink);color:var(--ink);border-style:solid}
-.rfoot{display:flex;align-items:center;gap:8px;margin-top:12px}
-.rfoot .hint{margin:0 auto 0 2px;min-height:0;font-size:12px;max-width:40ch}
+.addm{margin-top:12px;border:1px solid var(--rule);border-radius:10px;background:#fff;padding:0 12px}
+.addm[open]{padding-bottom:12px}
+.addm summary{display:flex;gap:8px;min-height:42px;align-items:center;margin:0 -12px;padding:0 12px;white-space:nowrap;font:12px var(--mono);color:var(--ink2);cursor:pointer;list-style:none}
+.addm summary::-webkit-details-marker{display:none}
+.addm summary::before{content:"+";font:500 15px/1 var(--mono);color:var(--accent-ink)}
+.addm[open] summary::before{content:"−"}
+.addm summary small{min-width:0;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.addm .url{margin-bottom:10px}
+.drop.sm{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;margin-bottom:8px}
+.drop.sm .ic{width:34px;height:34px;margin:0;border-radius:9px;flex:none}
+.drop.sm p{margin:2px 0 0;font-size:12px}
+.addm .chips{margin:0 0 10px}
+.addm .chips:empty{display:none}
+.rfoot{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.rfoot .hint{margin:0 auto 0 2px;min-height:0;font-size:12px;flex:1 1 180px}
 
 /* questions: rise under the feed when Claude can't source something essential */
 .ask{flex:0 1 auto;min-height:0;max-height:66%;overflow-y:auto;border-top:1px solid var(--ink);background:var(--card);padding:16px 18px 14px;animation:rise .22s ease both}
@@ -361,45 +414,85 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .aq small{font:11.5px/1.4 var(--mono);color:var(--muted);margin:3px 0 7px}
 .aq textarea{grid-column:2;min-height:54px}
 .ask .rfoot .hint{max-width:none}
-.ask .rfoot{position:sticky;bottom:-14px;margin:4px -18px -14px;padding:10px 18px 12px;background:var(--card);border-top:1px solid var(--rule2)}
+.ask .rfoot{position:sticky;bottom:0;margin:4px -18px -14px;padding:10px 18px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--rule2)}
+[data-state=waiting] .ask{max-height:none;overflow:visible}
 .ask .rfoot .btn:disabled{cursor:wait}
 
 footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono);color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
 @media (max-width:900px){
-  main{grid-template-columns:1fr;gap:28px}
-  .panel{position:relative;top:0}
-  .pbody{height:70vh;min-height:440px}
   .hero{grid-template-columns:1fr;gap:16px;padding:30px 0 24px}
 }
-@media (max-width:560px){
-  .wrap{padding:0 16px}
+@media (max-width:600px){
+  .wrap{padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
   .pipeline{display:none}
+  .bar{padding:14px 0 12px}
+  .logo{font-size:26px}
+  h1{font-size:44px}
+  .hero{padding:22px 0 20px;gap:12px}
+  .lede{font-size:14.5px}
+  main{padding:20px 0 40px}
+  .sec{padding-bottom:22px;margin-bottom:22px}
+  .drop{padding:20px 16px}
   .seg{gap:8px}
   .face small{display:none}
-  .feed li{grid-template-columns:40px 24px 1fr;gap:8px;padding:6px 12px}
+  .lenhead small{display:none}
+  .feed li{grid-template-columns:38px 24px 1fr;gap:8px;padding:6px 12px}
   .go kbd{display:none}
-  .rev{max-height:none}
-  .v-done iframe{min-height:140px}
-  .pv{min-height:220px}
-  .pv[data-mode=slides] .pvstage{padding:12px}
-  .pvbar{flex-wrap:wrap;padding:8px 10px}
-  .pvthumbs{order:3;flex-basis:100%}
-  .pvt{width:72px}
+  .seg.th{grid-template-columns:repeat(2,1fr);gap:10px}
+  .theme .face b{font-size:14px}
+  .sum{padding:10px 12px 12px 14px}
+  .sumtxt{flex-direction:column;gap:2px}
+  .sumtxt b{font-size:21px}
+  .jid{display:none}
+  .sumbtns{flex-basis:100%}
+  .pbody{height:max(380px,calc(100dvh - 236px))}
+  .sumbtns .btn{flex:1;justify-content:center}
+  /* result: the viewer runs edge to edge */
+  body[data-stage=result] .panel{margin:0 -16px;border-radius:0;border-left:0;border-right:0;box-shadow:none}
+  .pv[data-mode=slides] .pvstage{padding:10px 8px}
+  .pv[data-mode=report] .pvstage{padding:10px 8px 4px}
+  .pvbar{flex-wrap:wrap;padding:8px 10px;gap:8px 10px}
+  .pvthumbs{order:3;flex-basis:100%;scroll-snap-type:x mandatory;scroll-padding:0 3px}
+  .pvt{width:76px;scroll-snap-align:center}
   #pvpresent{margin-left:auto}
-  .seg.th{grid-template-columns:repeat(2,1fr)}
-  .dbar{gap:6px;padding:10px 12px}
-  .dbar .msg{flex-basis:100%}
-  .dbar .btn{padding:7px 10px;font-size:12px}
+  .dbar{padding:12px}
   .hist{margin-left:0}
-  .ask{max-height:none;padding:14px 12px}
-  .ask .rfoot{flex-wrap:wrap;margin:4px -12px -14px;padding:10px 12px 12px}
+  .rev{padding:14px 12px}
+  .ask{padding:14px 12px}
+  .ask .rfoot{margin:4px -12px -14px;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
   .ask .rfoot .hint{flex-basis:100%}
+  .ask .rfoot .btn{flex:1;justify-content:center}
+  .tpop:modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}
+  .tpmeta h3{font-size:24px}
+}
+/* touch: 44px targets, 16px inputs (no iOS zoom on focus) */
+@media (max-width:600px),(pointer:coarse){
+  .btn{min-height:44px;justify-content:center}
+  .step button{width:44px;height:44px;font-size:19px}
+  .lenrow input[type=range]::-webkit-slider-thumb{width:26px;height:26px}
+  .chip{padding:2px 2px 2px 9px}
+  .chip button{min-width:36px;min-height:36px;font-size:18px}
+  .eye{width:34px;height:34px;border-radius:8px}
+  .eye::after,.pvt .c::after{content:"";position:absolute;inset:-6px}
+  .tcell .eye{width:28px;height:28px;top:6px;left:6px}
+  .tchip{width:84px}
+  .tpx{width:44px;height:44px;font-size:20px;border-radius:11px}
+  .tpth{gap:8px}
+  .pvnav button{width:44px;height:44px;font-size:20px}
+  .pvt .c{width:28px;height:28px}
+  .pvnote{padding:9px 12px}
+  .addpg{min-height:44px;padding:0 14px}
+  .pg button{min-width:44px;font-size:19px}
+  .pg input[type=number]{width:52px;padding:11px 0}
+  .url span,.url input,textarea,.pg input,.pg .pn{font-size:16px}
+  .url input{padding:13px 12px 13px 2px}
+  .hist a,.hist b{padding:8px 10px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body>
+<body data-state="idle" data-stage="input">
 <header>
   <div class="wrap">
     <div class="bar">
@@ -418,7 +511,13 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
 <div class="wrap">
 <main>
+  <div class="sum" id="sum">
+    <div class="sumtxt"><b id="sumsrc"></b><span id="sumopts"></span></div>
+    <span class="jid" id="jobid"></span><span class="pill" id="pill">Waiting for input</span>
+    <div class="sumbtns"><button type="button" class="btn" id="edit">Edit inputs</button><button type="button" class="btn" id="again">New report</button></div>
+  </div>
   <form id="f" novalidate data-kind="report">
+    <div class="col">
     <section class="sec">
       <h2><small>01</small>Source</h2>
       <label class="drop" id="drop">
@@ -447,7 +546,9 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
         </div>
       </div>
     </section>
+    </div>
 
+    <div class="col">
     <section class="sec">
       <h2><small>03</small>Theme</h2>
       <p class="thlede" id="thlede">Each card is page one of a real deck in that theme. You can switch themes after it's built.</p>
@@ -461,15 +562,11 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
     <button class="go" id="go" type="submit"><span class="prog" id="prog"></span><span id="golabel">Generate report</span><kbd>⌘ ↵</kbd></button>
     <p class="hint err" id="formerr" role="alert"></p>
+    </div>
   </form>
 
-  <aside class="panel" id="panel" data-state="idle" aria-live="polite">
-    <div class="ptop"><span class="ttl">Proof</span><span id="jobid"></span><span class="pill" id="pill">Waiting for input</span></div>
+  <aside class="panel" id="panel" aria-live="polite">
     <div class="pbody">
-      <div class="view v-idle">
-        <div class="mock"><div class="h">Project Report</div><div class="k">47 commits · 12 days · 3 authors</div><div class="ln"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:94%"></div><div class="ch"><i style="height:30%;animation-delay:.05s"></i><i style="height:55%;animation-delay:.1s"></i><i style="height:40%;animation-delay:.15s"></i><i style="height:85%;animation-delay:.2s"></i><i style="height:62%;animation-delay:.25s"></i><i style="height:100%;animation-delay:.3s"></i><i style="height:48%;animation-delay:.35s"></i></div><div class="ln"></div><div class="ln" style="width:76%"></div></div>
-        <p><b>Your PDF shows up here.</b>Every chart is drawn from numbers counted in your files. The agent only writes the words.</p>
-      </div>
       <div class="view v-feed">
         <ol class="feed" id="feed"></ol>
         <form class="ask" id="ask" hidden novalidate aria-label="Questions from devreport">
@@ -483,7 +580,6 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
         <div class="ffoot"><span>elapsed</span><span class="clock" id="clock">00:00</span><button type="button" class="btn back" id="back" hidden>Back to the PDF</button><button type="button" class="btn retry" id="retry">Edit and try again</button></div>
       </div>
       <div class="view v-done">
-        <div class="tstrip" id="tstrip" role="group" aria-label="Theme"><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
         <div class="pdfwrap">
           <div class="pv" id="pv" data-mode="slides" hidden>
             <div class="pvstage" id="pvstage" tabindex="-1" aria-label="PDF pages"></div>
@@ -495,19 +591,33 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
             <span class="pvcount" id="pvcount"></span>
           </div>
           <iframe id="pdf" title="Generated PDF" hidden></iframe><div class="veil" id="veil" hidden></div></div>
-        <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
-          <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
-          <label class="rlab" for="revgen" id="revlab">Whole deck</label>
-          <textarea id="revgen" maxlength="4000" placeholder="Tighter titles, fewer bullets, a calmer tone…"></textarea>
-          <div class="pgs" id="pgs"><button type="button" class="addpg" id="addpg">+ Note on a page</button></div>
-          <div class="rfoot"><p class="hint" id="reverr" role="alert">The agent edits the existing LaTeX. It won't add facts your files don't have.</p>
-            <button type="submit" class="btn solid" id="revgo">Apply changes</button></div>
-        </form>
-        <div class="dbar"><span class="msg"><span class="ver" id="ver">v1</span><span id="donemsg">Typeset.</span></span>
-          <a class="btn solid" id="dlpdf" download>Download PDF</a>
-          <a class="btn" id="dltex" download>Download .tex</a>
-          <button type="button" class="btn" id="revopen" aria-expanded="false" aria-controls="rev">Request changes</button>
-          <button type="button" class="btn" id="again">New report</button>
+        <div class="side">
+          <div class="dbar"><span class="msg"><span class="ver" id="ver">v1</span><span id="donemsg">Typeset.</span></span>
+            <a class="btn solid" id="dlpdf" download>Download PDF</a>
+            <a class="btn" id="dltex" download>Download .tex</a>
+            <button type="button" class="btn" id="revopen" aria-expanded="false" aria-controls="rev">Request changes</button>
+          </div>
+          <div class="tstrip" id="tstrip" role="group" aria-label="Theme"><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
+          <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
+            <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
+            <label class="rlab" for="revgen" id="revlab">Whole deck</label>
+            <textarea id="revgen" maxlength="4000" placeholder="Tighter titles, fewer bullets, a calmer tone…"></textarea>
+            <div class="pgs" id="pgs"><button type="button" class="addpg" id="addpg">+ Note on a page</button></div>
+            <details class="addm" id="addm"><summary>Add material <small>files, a zip, a repo, or news</small></summary>
+              <label class="drop sm" id="adddrop">
+                <input type="file" id="addfile" multiple aria-label="Add files">
+                <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg></span>
+                <span><strong>Add files or a .zip</strong><p>New logs, CSVs, screenshots. Up to 50 MB.</p></span>
+              </label>
+              <div class="chips" id="addchips"></div>
+              <div class="url" id="addurlbox"><span>github.com/</span><input id="addrepo" inputmode="url" autocomplete="off" spellcheck="false" placeholder="owner/repo (optional)" aria-label="GitHub repo to add"></div>
+              <label class="rlab" for="addnotes">What's new?</label>
+              <textarea id="addnotes" maxlength="20000" placeholder="We later got 40 users; here's the signup CSV"></textarea>
+            </details>
+            <div class="rfoot"><p class="hint" id="reverr" role="alert">The agent edits the existing LaTeX. It won't add facts your files don't have.</p>
+              <button type="submit" class="btn solid" id="revgo">Apply changes</button></div>
+          </form>
+          <details class="log" id="log"><summary id="logsum">Build log</summary></details>
         </div>
       </div>
     </div>
@@ -527,7 +637,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 
 <script>
 const $ = (s) => document.querySelector(s);
-const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'), fileIn = $('#file');
+const form = $('#f'), feed = $('#feed'), drop = $('#drop'), fileIn = $('#file');
 // feed icons: inner SVG of Lucide icons (ISC), drawn 24x24 with stroke=currentColor; unknown keys get a dot
 const ICON = {
   upload: '<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
@@ -579,24 +689,25 @@ const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + '
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
-function renderChips() {
-  $('#chips').innerHTML = files.map((f, i) => `<span class="chip">${/\.zip$/i.test(f.name) ? '<span class="z">ZIP</span>' : ''}<span class="n" title="${esc(f.name)}">${esc(f.name)}</span><span class="s">${fmt(f.size)}</span><button type="button" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('');
+const chipsHtml = (files) => files.map((f, i) => `<span class="chip">${/\.zip$/i.test(f.name) ? '<span class="z">ZIP</span>' : ''}<span class="n" title="${esc(f.name)}">${esc(f.name)}</span><span class="s">${fmt(f.size)}</span><button type="button" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('');
+const renderChips = () => { $('#chips').innerHTML = chipsHtml(files); };
+const merge = (into, list) => { for (const f of list) if (!into.some((g) => g.name === f.name && g.size === f.size)) into.push(f); };
+function addFiles(list) { merge(files, list); renderChips(); $('#formerr').textContent = ''; }
+// a drop zone: its file input, drag and drop, and a chip list whose × removes a file
+function dropzone(zone, input, chips, onAdd, onRemove) {
+  input.onchange = () => { onAdd(input.files); input.value = ''; };
+  ['dragenter', 'dragover'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', (e) => onAdd(e.dataTransfer.files));
+  chips.onclick = (e) => { const i = e.target.dataset.i; if (i != null) onRemove(+i); };
 }
-function addFiles(list) {
-  for (const f of list) if (!files.some((g) => g.name === f.name && g.size === f.size)) files.push(f);
-  renderChips(); $('#formerr').textContent = '';
-}
-$('#chips').onclick = (e) => { const i = e.target.dataset.i; if (i != null) { files.splice(+i, 1); renderChips(); } };
-fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ''; };
-['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
-['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
+dropzone(drop, fileIn, $('#chips'), addFiles, (i) => { files.splice(i, 1); renderChips(); });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
 
 // accept "owner/repo", "github.com/owner/repo" or a full URL
-function repoUrl() {
-  const v = $('#repo').value.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '');
+function repoUrl(input = $('#repo')) {
+  const v = input.value.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '');
   return v ? 'https://github.com/' + v : '';
 }
 $('#repo').addEventListener('input', () => {
@@ -661,8 +772,15 @@ document.addEventListener('keydown', (e) => {
   if (e.target.closest?.('#rev')) { e.preventDefault(); rev.requestSubmit(); } else if (e.target.closest?.('#ask')) { e.preventDefault(); ask.requestSubmit(); } else if (!$('#go').disabled) form.requestSubmit();
 });
 
+// stages: input (idle/uploading) shows the form; work (running/waiting/failed) the feed; result (done) the viewer
+const STAGE = { idle: 'input', uploading: 'input', running: 'work', waiting: 'work', failed: 'work', done: 'result' };
 function setState(s, pill) {
-  panel.dataset.state = s; $('#pill').textContent = pill;
+  const B = document.body, stage = STAGE[s];
+  if (B.dataset.stage !== stage) { B.dataset.stage = stage; if (stage !== 'input') scrollTo({ top: 0 }); }
+  B.dataset.state = s; $('#pill').textContent = pill;
+  // the feed lives in the work view; once done it folds into the "build log" disclosure
+  if (s === 'done') { $('#log').append(feed); const n = feed.children.length, took = feed.lastElementChild?.querySelector('time').textContent; $('#logsum').textContent = `Show build log (${n} step${n === 1 ? '' : 's'}${took && took !== '00:00' ? ', ' + took : ''})`; }
+  else if (feed.parentNode.id === 'log') $('.v-feed').prepend(feed);
   const busy = s === 'uploading' || s === 'running', locked = busy || s === 'waiting';
   form.classList.toggle('locked', locked); $('#go').disabled = locked;
   if (!busy) { clearInterval(tick); tick = null; }
@@ -693,7 +811,7 @@ form.addEventListener('submit', (e) => {
   feed.innerHTML = ''; $('#formerr').textContent = ''; $('#jobid').textContent = '';
   t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
   setState('uploading', 'Uploading');
-  if (matchMedia('(max-width:900px)').matches) panel.scrollIntoView({ behavior: 'smooth' });
+  setSum(files.length ? files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') : url.replace('https://', ''), checked('kind'), lenr.value, checked('theme'));
 
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/jobs');
@@ -729,6 +847,7 @@ function listen(id, shown = 0, retries = 0) {
   });
   es.addEventListener('done', (e) => {
     const d = JSON.parse(e.data); es.close(); t0 ||= d.t;
+    if (sum.src?.startsWith('#')) setSum('#' + id, d.kind, '', d.theme); // reattached: the form doesn't know this job's inputs
     addStep('done', d.version > 1 ? `v${d.version} ready` : 'PDF ready', d.t);
     setTimeout(() => {
       showDone(d);
@@ -781,7 +900,7 @@ $('#tchips').addEventListener('click', async (e) => {
   if (r.ok) {
     showPdf(j.pdf, last.kind).finally(() => { veil.hidden = true; });
     setTimeout(() => { veil.hidden = true; }, 4000);
-    last = { ...last, theme };
+    last = { ...last, theme }; setSum(sum.src, sum.kind, sum.len, theme);
     chips.forEach((c) => c.setAttribute('aria-pressed', c === chip));
     $('#tmsg').textContent = j.cached ? 'cached' : (j.ms / 1000).toFixed(1) + ' s';
     $('#tmsg').title = `${themeName(theme)}: ${j.cached ? 'already compiled, swapped in' : 'recompiled with tectonic'}`;
@@ -967,7 +1086,7 @@ present.onclick = () => stage.requestFullscreen().then(() => stage.focus()).catc
 const KEYS = { ArrowRight: 1, PageDown: 1, ' ': 1, ArrowLeft: -1, PageUp: -1 };
 document.addEventListener('keydown', (e) => {
   const d = KEYS[e.key];
-  if (!d || !V.doc || V.kind !== 'slides' || pv.hidden || panel.dataset.state !== 'done' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!d || !V.doc || V.kind !== 'slides' || pv.hidden || document.body.dataset.state !== 'done' || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest?.('input, textarea, select, [contenteditable], dialog') || (e.key === ' ' && e.target.closest?.('button, a'))) return;
   const r = stage.getBoundingClientRect();
   if (!document.fullscreenElement && (r.bottom < 60 || r.top > innerHeight - 60)) return; // the deck is scrolled away: let the page scroll
@@ -1004,6 +1123,10 @@ function noteOn(n) {
 }
 pgs.addEventListener('input', () => markNotes());
 pgs.addEventListener('click', () => markNotes()); // after a row's × removed it
+// add material: more files, a repo or news for this job, sent with the revision
+let more = [];
+const renderMore = () => { $('#addchips').innerHTML = chipsHtml(more); };
+dropzone($('#adddrop'), $('#addfile'), $('#addchips'), (list) => { merge(more, list); renderMore(); }, (i) => { more.splice(i, 1); renderMore(); });
 const revHint = (msg) => { $('#reverr').textContent = msg || "The agent edits the existing LaTeX. It won't add facts your files don't have."; $('#reverr').classList.toggle('err', !!msg); };
 rev.addEventListener('submit', async (e) => {
   e.preventDefault(); revHint();
@@ -1012,14 +1135,24 @@ rev.addEventListener('submit', async (e) => {
   const bad = rows.filter((r) => { const v = r.querySelector('input').value; return !/^\d+$/.test(v) || +v < 1 || +v > 999; });
   if (bad.length) { bad.forEach((r) => r.classList.add('bad')); return revHint('Give each page note a page number.'); }
   const general = $('#revgen').value.trim(), pages = rows.map((r) => ({ page: +r.querySelector('input').value, note: r.querySelector('.pn').value.trim() }));
-  if (!general && !pages.length) { $('#revgen').focus(); return revHint('Write what should change, for the whole thing or a page.'); }
-  $('#revgo').disabled = true;
-  let r, j = {};
-  try { r = await fetch(`/api/jobs/${jobId}/revise`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ general, pages }) }); j = await r.json().catch(() => ({})); }
-  catch { r = { ok: false }; j.error = 'Could not reach the server. Is node server.js running?'; }
-  $('#revgo').disabled = false;
-  if (!r.ok) return revHint(j.error || `Revision failed (${r.status})`);
-  $('#revgen').value = ''; pgs.querySelectorAll('.pg').forEach((p) => p.remove()); markNotes(); toggleRev(false); $('#back').hidden = true;
+  const notes = $('#addnotes').value.trim(), url = repoUrl($('#addrepo'));
+  if (!general && !pages.length && !notes && !url && !more.length) { $('#revgen').focus(); return revHint('Write what should change, for the whole thing or a page, or add material.'); }
+  const fd = new FormData();
+  fd.append('general', general); fd.append('pages', JSON.stringify(pages)); fd.append('notes', notes);
+  if (url) fd.append('repoUrl', url);
+  more.forEach((f) => fd.append('files', f, f.name));
+  const go = $('#revgo'), label = go.textContent; go.disabled = true;
+  const { ok, status, j } = await new Promise((done) => {
+    const x = new XMLHttpRequest(); x.open('POST', `/api/jobs/${jobId}/revise`);
+    if (more.length) x.upload.onprogress = (ev) => { if (ev.lengthComputable) go.textContent = `Uploading ${Math.round(ev.loaded / ev.total * 100)}%`; };
+    x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {} done({ ok: x.status < 300, status: x.status, j }); };
+    x.onerror = () => done({ ok: false, j: { error: 'Could not reach the server. Is node server.js running?' } });
+    x.send(fd);
+  });
+  go.disabled = false; go.textContent = label;
+  if (!ok) return revHint(j.error || `Revision failed (${status})`);
+  $('#revgen').value = $('#addnotes').value = $('#addrepo').value = ''; more = []; renderMore(); $('#addm').open = false;
+  pgs.querySelectorAll('.pg').forEach((p) => p.remove()); markNotes(); toggleRev(false); $('#back').hidden = true;
   feed.innerHTML = ''; t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
   setState('running', `Revising to v${j.version}`);
   listen(jobId);
@@ -1050,14 +1183,26 @@ function fail(msg) {
   addStep('failed', msg);
   setState('failed', 'Failed');
 }
-const reset = () => { es?.close(); toggleRev(false); ask.hidden = true; $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; clearPdf(); form.scrollIntoView({ behavior: 'smooth' }); };
+// the collapsed form: one line of what this job was made from
+let sum = {};
+function setSum(src, kind, len, theme) {
+  sum = { src, kind, len, theme };
+  $('#sumsrc').textContent = src;
+  $('#sumopts').textContent = kind ? [kind === 'slides' ? 'Slides' : 'Report', len && `${len} ${LEN[kind].unit}`, themeName(theme)].filter(Boolean).join(' · ') : '';
+  $('#jobid').hidden = src.startsWith('#');
+  $('#again').textContent = kind === 'slides' ? 'New deck' : 'New report';
+}
+const reset = () => { es?.close(); toggleRev(false); ask.hidden = true; $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; clearPdf(); sum = {}; more = []; renderMore(); scrollTo({ top: 0, behavior: 'smooth' }); };
+const busy = () => ['running', 'waiting'].includes(document.body.dataset.state);
 $('#retry').onclick = reset;
-$('#again').onclick = reset;
+// back to the form, inputs kept; a job still running is dropped from view (the server finishes it, #job=<id> reattaches)
+$('#edit').onclick = () => { if (!busy() || confirm('Leave this job? It keeps running on the server, but this page stops following it.')) reset(); };
+$('#again').onclick = () => { if (busy() && !confirm('Leave this job and start a new one?')) return; files = []; renderChips(); $('#repo').value = ''; reset(); };
 // reattach after a reload: #job=<id>
 const resume = location.hash.match(/^#job=([a-f0-9]{8})$/);
 if (resume) {
   feed.innerHTML = ''; t0 = 0; tick = setInterval(() => { if (t0) $('#clock').textContent = mmss(Date.now() - t0); }, 500);
-  $('#jobid').textContent = '#' + resume[1]; setState('running', 'Working'); listen(resume[1]);
+  $('#jobid').textContent = '#' + resume[1]; setSum('#' + resume[1]); setState('running', 'Working'); listen(resume[1]);
 }
 </script>
 </body>
