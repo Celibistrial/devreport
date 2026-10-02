@@ -16,6 +16,8 @@ const MAX_UNZIPPED = 200 * 1024 * 1024;
 const CLAUDE_TIMEOUT = 10 * 60 * 1000;
 const ID_RE = /^[0-9a-f]{8}$/;
 const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
+// cli: Claude Code headless (`claude -p`). ai: agent.js, our AI SDK loop with four sandboxed tools (model from DEVREPORT_MODEL)
+const ENGINE = process.env.DEVREPORT_ENGINE === 'ai' ? 'ai' : 'cli';
 const DEFAULT_PROMPT = 'Follow the devreport skill. Build a {{kind}} with the {{theme}} theme from the inputs in this folder (facts.json, data/, images/, input/). Write main.tex and compile it to main.pdf with tectonic, fixing errors until it compiles.';
 
 const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_ADDED_NOTES = 20000, MAX_PAGE_NOTES = 30, MAX_ANSWER = 2000;
@@ -111,7 +113,10 @@ async function unzipInto(zipPath, inputDir) {
 }
 
 // ---------- claude stream-json -> human steps ----------
+const AI_TOOLS = { read_file: 'Read', write_file: 'Write', edit_file: 'Edit' }; // agent.js names -> the CLI ones
 function describeTool(name, input = {}, jobDir = '.') {
+  if (name === 'compile') return ['compile', 'Compiling with tectonic'];
+  if (AI_TOOLS[name]) [name, input] = [AI_TOOLS[name], { ...input, file_path: input.path }];
   const fp = input.file_path || '';
   const file = path.basename(fp);
   switch (name) {
@@ -161,8 +166,10 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
   if (opts.resume) prompt = opts.prompt;
 
   return new Promise((resolve, reject) => {
-    const child = spawn('claude', [...(opts.resume ? ['--resume', opts.resume] : []), '-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools],
-      { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
+    const resume = opts.resume ? ['--resume', opts.resume] : [];
+    const child = ENGINE === 'ai'
+      ? spawn(process.execPath, [path.join(ROOT, 'agent.js'), ...resume, '-p', prompt], { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] })
+      : spawn('claude', [...resume, '-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools], { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
     const timer = setTimeout(() => { step(id, 'error', 'Timed out after 10 minutes'); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
     let buf = '', stderr = '', resultText = '', cost, note = '', sessionId;
@@ -191,11 +198,14 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
             step(id, 'error', pending.get(c.tool_use_id) === 'compile' ? 'Compile error, fixing' : 'A step failed, retrying');
           }
         }
-        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; note = clean(resultText) || note; flush(600, 'final'); } // the feed shows only this one
+        if (msg.type === 'result') {
+          console.log(`[${id}] ${ENGINE}: ${msg.num_turns} turns, ${Math.round(msg.duration_ms / 1000)} s`);
+          resultText = msg.result || ''; cost = msg.total_cost_usd; note = clean(resultText) || note; flush(600, 'final'); // the feed shows only this one
+        }
       }
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
-    child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'Agent CLI (claude) not found on PATH' : e.message)); });
+    child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' && ENGINE === 'cli' ? 'Agent CLI (claude) not found on PATH' : e.message)); });
     child.on('close', (code) => { clearTimeout(timer); flush(); resolve({ code, stderr, resultText, cost, sessionId }); });
   });
 }
@@ -655,5 +665,5 @@ const server = http.createServer((req, res) => {
   json(res, 404, { error: 'Not found' });
 });
 
-if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT}`));
+if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT} (${ENGINE} engine${ENGINE === 'ai' ? `, ${process.env.DEVREPORT_MODEL || 'claude-code:opus'}` : ''})`));
 module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision, parseLength, parseQuestions, parseAnswers, THEMES, themeError, themeTex, useThemeTex };
