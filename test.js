@@ -80,6 +80,27 @@ test('collects git, logs, tables, notes, images', () => {
   assert.ok(fs.existsSync(path.join(job, 'images/img1.png')));
 });
 
+test('re-collecting with input/added-N/ keeps image ids, table names and the project root', () => {
+  const job = makeJob();
+  const first = collect(job);
+  const add = path.join(job, 'input', 'added-1');
+  fs.mkdirSync(add);
+  fs.writeFileSync(path.join(add, 'a.png'), PNG); // sorts before shot.png
+  fs.writeFileSync(path.join(add, 'sales.csv'), 'month,revenue\n2026-10-01,5\n2026-11-01,6\n');
+  fs.writeFileSync(path.join(add, 'notes.md'), '## Added after the first draft\n\nShipped v2.\n');
+  const again = collect(job);
+  assert.strictEqual(again.project.name, first.project.name);
+  assert.deepStrictEqual(again.images, [...first.images, { id: 'img2', file: 'images/img2.png', original: 'input/added-1/a.png' }]);
+  assert.deepStrictEqual(csv(job, 'table_sales.csv'), ['month,revenue', '2026-07-01,100', '2026-08-01,1200', '2026-09-01,900']);
+  assert.deepStrictEqual(csv(job, 'table_sales_2.csv'), ['month,revenue', '2026-10-01,5', '2026-11-01,6']);
+  assert.ok(again.notes.some(n => n.file === 'input/added-1/notes.md'));
+  // ids come from the previous facts.json, not from the walk order; new ones go after the max
+  const f = path.join(job, 'facts.json'), prev = JSON.parse(fs.readFileSync(f));
+  prev.images = [{ id: 'img4', file: 'images/img4.png', original: 'input/shot.png' }];
+  fs.writeFileSync(f, JSON.stringify(prev));
+  assert.deepStrictEqual(collect(job).images.map(i => [i.id, i.original]), [['img4', 'input/shot.png'], ['img5', 'input/added-1/a.png']]);
+});
+
 test('pasted git log text and syslog/[HH:MM:SS] logs', () => {
   const job = fs.mkdtempSync(path.join(os.tmpdir(), 'devreport-test-'));
   fs.mkdirSync(path.join(job, 'input'));
@@ -271,6 +292,8 @@ test('parseRevision validates revise feedback', () => {
     ['{"pages":[{"page":"3","note":"x"}]}', /whole numbers/], ['{"pages":[{"page":0,"note":"x"}]}', /whole numbers/],
     ['{"pages":{}}', /array/], [JSON.stringify({ pages: [{ page: 1, note: 'x'.repeat(1001) }] }), /over 1000/]])
     assert.throws(() => parseRevision(body), re);
+  // added material (multipart notes/files/repoUrl) is a change on its own
+  assert.deepStrictEqual(parseRevision('{"general":""}', true), { general: '', pages: [] });
 });
 
 test('length, questions.json and answers are validated', () => {

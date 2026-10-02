@@ -343,10 +343,21 @@ function collect(jobDir) {
   const dataDir = path.join(jobDir, 'data'), imgDir = path.join(jobDir, 'images');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(imgDir, { recursive: true });
+  // Re-collecting after a revision adds input/added-N/: main.tex already names images/imgN.* and data/table_*.csv,
+  // so keep the ids the previous facts.json handed out and give new images the next free numbers.
+  let prev = {};
+  try { prev = JSON.parse(fs.readFileSync(path.join(jobDir, 'facts.json'), 'utf8')); } catch {}
+  const prevImg = new Map((prev.images || []).map(i => [i.original, i.id]));
+  let nextImg = Math.max(0, ...[...prevImg.values()].map(id => +id.slice(3) || 0)) + 1;
   const facts = { project: { name: '', readme: null }, repo: null, logs: null, code: null, charts: [], notes: [], answers: null, images: [] };
   const safe = (label, fn) => { try { return fn(); } catch (e) { console.error(`collect: ${label}: ${e.message}`); } };
 
-  const walked = walk(jobDir), repos = walked.repos;
+  const walked = walk(jobDir);
+  // material added after the first draft (input/added-N/) goes last, in N order, so it never takes an earlier file's
+  // table_<slug> name, image id or the project's root
+  const added = f => +((f.match(/^input\/added-(\d+)(\/|$)/) || [])[1] || 0);
+  const byAdded = (a, b) => added(a) - added(b);
+  const repos = walked.repos.sort(byAdded);
   // Inside a repo drop gitignored files (nested clones, build output, node_modules): they aren't the project.
   const ignored = repos.flatMap(r => (safe('ls-files ' + r, () => gitIgnored(path.join(jobDir, r))) || []).map(p => r + '/' + p));
   const files = walked.files.filter(f => !ignored.some(p => p.endsWith('/') ? f.startsWith(p) : f === p));
@@ -366,7 +377,7 @@ function collect(jobDir) {
   // Project name + README: first repo, else the folder all uploads share (e.g. input/<zip>/<project>).
   let root = repos[0];
   if (!root) {
-    const dirs = files.filter(f => f.startsWith('input/') && f !== 'input/answers.md').map(f => path.dirname(f));
+    const dirs = files.filter(f => f.startsWith('input/') && f !== 'input/answers.md' && !added(f)).map(f => path.dirname(f));
     root = dirs[0] || 'input';
     for (const d of dirs) while (root !== 'input' && d !== root && !d.startsWith(root + '/')) root = path.dirname(root);
   }
@@ -404,11 +415,11 @@ function collect(jobDir) {
   // Root-level files of each repo first, then docs/, then the rest (loose uploads keep walk order), so the notes cap keeps the important ones.
   const repoOf = f => repos.find(r => f.startsWith(r + '/'));
   const prio = f => { const r = repoOf(f); if (!r) return 0; const rel = f.slice(r.length + 1); return !rel.includes('/') ? 0 : rel.startsWith('docs/') ? 1 : 2; };
-  for (const f of [...files].sort((a, b) => prio(a) - prio(b))) safe(f, () => {
+  for (const f of [...files].sort((a, b) => byAdded(a, b) || prio(a) - prio(b))) safe(f, () => {
     const ext = path.extname(f).toLowerCase();
     if (IMG_EXT.has(ext)) {
-      if (facts.images.length >= MAX_IMAGES || vendored(f)) return;
-      const id = 'img' + (facts.images.length + 1);
+      const id = prevImg.get(f) || (facts.images.length < MAX_IMAGES && !vendored(f) && 'img' + nextImg++);
+      if (!id) return;
       // tectonic renders 16-bit PNGs blank with no error; re-encode those to 8-bit JPEG (sips = macOS only)
       const is16 = ext === '.png' && fs.readFileSync(abs(f)).subarray(24, 25)[0] === 16;
       let out = `images/${id}${ext}`;
