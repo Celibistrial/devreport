@@ -18,7 +18,8 @@ const ID_RE = /^[0-9a-f]{8}$/;
 const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
 const DEFAULT_PROMPT = 'Follow the devreport skill. Build a {{kind}} with the {{theme}} theme from the inputs in this folder (facts.json, data/, images/, input/). Write main.tex and compile it to main.pdf with tectonic, fixing errors until it compiles.';
 
-const jobs = new Map(); // id -> { events: [], clients: Set, finished }
+const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_PAGE_NOTES = 30;
+const jobs = new Map(); // id -> { events: [], from, clients: Set, finished }; a revision replays events from `from`
 let busy = null; // ponytail: one job at a time (429 otherwise); add a queue if several users share a server
 
 // ---------- events ----------
@@ -123,22 +124,28 @@ function describeTool(name, input = {}, jobDir = '.') {
   }
 }
 
-function runClaude(id, jobDir, kind, theme) {
+function runClaude(id, jobDir, vars, file = 'prompt.txt') {
   let tools = DEFAULT_TOOLS, prompt = DEFAULT_PROMPT;
   try {
-    const txt = fs.readFileSync(path.join(ROOT, '.claude/skills/devreport/prompt.txt'), 'utf8');
+    const txt = fs.readFileSync(path.join(ROOT, '.claude/skills/devreport', file), 'utf8');
     const [first, ...rest] = txt.split('\n');
     const m = /^ALLOWED_TOOLS=(.+)$/.exec(first.trim());
     if (m) { tools = m[1].trim(); prompt = rest.join('\n').trim(); } else prompt = txt.trim();
-  } catch { step(id, 'think', 'No prompt.txt found, using the default prompt'); }
-  prompt = prompt.replaceAll('{{kind}}', kind).replaceAll('{{theme}}', theme);
+  } catch {
+    if (file !== 'prompt.txt') return Promise.reject(new Error(`${file} is missing`));
+    step(id, 'think', 'No prompt.txt found, using the default prompt');
+  }
+  for (const [k, v] of Object.entries(vars)) prompt = prompt.replaceAll(`{{${k}}}`, v);
 
   return new Promise((resolve, reject) => {
     const child = spawn('claude', ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools],
       { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
     const timer = setTimeout(() => { step(id, 'error', 'Timed out after 10 minutes'); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
-    let buf = '', stderr = '', resultText = '', cost;
+    let buf = '', stderr = '', resultText = '', cost, note = '';
+    // the latest assistant text is held until the next step, so the last one (the summary) can be shown in full
+    const flush = (max = 140) => { if (note) step(id, 'note', note.length > max ? note.slice(0, max - 3) + '…' : note); note = ''; };
+    const clean = (t) => String(t || '').trim().replace(/\*\*|`/g, '').replace(/\s+/g, ' ');
     child.stdout.on('data', (d) => {
       buf += d;
       let nl;
@@ -151,29 +158,29 @@ function runClaude(id, jobDir, kind, theme) {
           if (msg.type === 'assistant' && c.type === 'tool_use') {
             const [icon, text] = describeTool(c.name, c.input, jobDir);
             pending.set(c.id, icon);
-            step(id, icon, text);
+            flush(); step(id, icon, text);
           } else if (msg.type === 'assistant' && c.type === 'text' && c.text.trim()) {
-            const t = c.text.trim().replace(/\*\*|`/g, '').replace(/\s+/g, ' ');
-            step(id, 'note', t.length > 140 ? t.slice(0, 137) + '…' : t);
+            flush(); note = clean(c.text);
           } else if (msg.type === 'user' && c.type === 'tool_result' && c.is_error) {
             step(id, 'error', pending.get(c.tool_use_id) === 'compile' ? 'Compile error, fixing' : 'A step failed, retrying');
           }
         }
-        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; }
+        if (msg.type === 'result') { resultText = msg.result || ''; cost = msg.total_cost_usd; note = clean(resultText) || note; flush(600); }
       }
     });
     child.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
     child.on('error', (e) => { clearTimeout(timer); reject(new Error(e.code === 'ENOENT' ? 'claude CLI not found on PATH' : e.message)); });
-    child.on('close', (code) => { clearTimeout(timer); resolve({ code, stderr, resultText, cost }); });
+    child.on('close', (code) => { clearTimeout(timer); flush(); resolve({ code, stderr, resultText, cost }); });
   });
 }
 
 // ---------- pipeline ----------
-async function setStatus(jobDir, status) {
+async function setStatus(jobDir, status, extra = {}) {
   const f = path.join(jobDir, 'job.json');
   const j = JSON.parse(await fsp.readFile(f, 'utf8'));
-  await fsp.writeFile(f, JSON.stringify({ ...j, status }, null, 2));
+  await fsp.writeFile(f, JSON.stringify({ ...j, ...extra, status }, null, 2));
 }
+const doneData = (id, j) => ({ pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, kind: j.kind, version: (j.revisions || 0) + 1 });
 
 async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
   const inputDir = path.join(jobDir, 'input');
@@ -220,12 +227,12 @@ async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
     }
 
     step(id, 'think', `Handing off to Claude Code (${kind}, ${theme} theme)`);
-    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, kind, theme);
+    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, { kind, theme });
     if (!fs.existsSync(path.join(jobDir, 'main.pdf'))) {
       throw new Error(`Claude finished without a PDF (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
     }
     await setStatus(jobDir, 'done');
-    emit(id, 'done', { pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex`, cost });
+    emit(id, 'done', { ...doneData(id, { kind }), cost });
   } catch (e) {
     await setStatus(jobDir, 'failed').catch(() => {});
     emit(id, 'failed', { error: e.message });
@@ -234,18 +241,89 @@ async function pipeline(id, jobDir, { zips, repoUrl, kind, theme, template }) {
   }
 }
 
+// ---------- revisions ----------
+// {general, pages:[{page, note}]} -> trimmed copy; throws on anything malformed
+function parseRevision(buf) {
+  let b; try { b = JSON.parse(buf); } catch { throw new Error('Body must be JSON'); }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) throw new Error('Body must be a JSON object');
+  const general = b.general ?? '', list = b.pages ?? [];
+  if (typeof general !== 'string') throw new Error('general must be a string');
+  if (general.length > MAX_GENERAL) throw new Error(`General feedback is over ${MAX_GENERAL} characters`);
+  if (!Array.isArray(list)) throw new Error('pages must be an array');
+  if (list.length > MAX_PAGE_NOTES) throw new Error(`At most ${MAX_PAGE_NOTES} page notes`);
+  const pages = list.map((p) => {
+    if (!p || !Number.isInteger(p.page) || p.page < 1 || p.page > 999) throw new Error('Page numbers must be whole numbers from 1 to 999');
+    if (typeof p.note !== 'string') throw new Error('Each page note must be a string');
+    if (p.note.length > MAX_NOTE) throw new Error(`A page note is over ${MAX_NOTE} characters`);
+    return { page: p.page, note: p.note.trim() };
+  }).filter((p) => p.note).sort((a, b) => a.page - b.page);
+  if (!general.trim() && !pages.length) throw new Error('Say what should change');
+  return { general: general.trim(), pages };
+}
+
+async function revise(id, jobDir, n, j, { general, pages }) {
+  const rev = path.join(jobDir, 'revisions'), tex = path.join(jobDir, 'main.tex'), pdf = path.join(jobDir, 'main.pdf');
+  const backTex = path.join(rev, `v${n}.tex`), backPdf = path.join(rev, `v${n}.pdf`);
+  try {
+    await setStatus(jobDir, 'running');
+    await fsp.mkdir(rev, { recursive: true });
+    await fsp.copyFile(tex, backTex);
+    await fsp.copyFile(pdf, backPdf);
+    const what = j.kind === 'slides' ? 'deck' : 'report';
+    await fsp.writeFile(path.join(rev, `r${n}.md`), `# Revision ${n}\n\n`
+      + (general ? `## Whole ${what}\n\n${general}\n\n` : '') + pages.map((p) => `## Page ${p.page}\n\n${p.note}\n\n`).join(''));
+    const asked = [general && `the whole ${what}`, pages.length && `page${pages.length === 1 ? '' : 's'} ${pages.map((p) => p.page).join(', ')}`].filter(Boolean).join(' and ');
+    step(id, 'revise', `Revision ${n}: notes on ${asked}. Saved v${n} as a backup`);
+    const started = Date.now();
+    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, { n, kind: j.kind, theme: j.theme }, 'revise.txt');
+    // a changed main.tex with a stale main.pdf means the last compile failed
+    const texChanged = (await fsp.readFile(tex, 'utf8')) !== (await fsp.readFile(backTex, 'utf8'));
+    const stale = !fs.existsSync(pdf) || (texChanged && (await fsp.stat(pdf)).mtimeMs < started);
+    if (code !== 0 || stale) throw new Error(`The revision didn't compile (exit ${code}). ${(resultText || stderr).trim().slice(0, 300)}`);
+    await setStatus(jobDir, 'done', { revisions: n });
+    emit(id, 'done', { ...doneData(id, { ...j, revisions: n }), cost });
+  } catch (e) {
+    // put the last good version back so the job stays usable
+    await fsp.copyFile(backTex, tex).catch(() => {});
+    await fsp.copyFile(backPdf, pdf).catch(() => {});
+    await setStatus(jobDir, 'done').catch(() => {});
+    emit(id, 'failed', { error: `${e.message.trim().replace(/\.?$/, '.')} Kept v${n}.`, ...doneData(id, j) });
+  } finally {
+    busy = null;
+  }
+}
+
+async function reviseJob(req, res, id) {
+  const jobDir = path.join(JOBS, id);
+  let j; try { j = JSON.parse(await fsp.readFile(path.join(jobDir, 'job.json'), 'utf8')); } catch { return json(res, 404, { error: 'No such job' }); }
+  if (busy) return json(res, 409, { error: 'A report is being generated or revised. Try again when it finishes.' });
+  if (j.status !== 'done' || !fs.existsSync(path.join(jobDir, 'main.pdf')) || !fs.existsSync(path.join(jobDir, 'main.tex')))
+    return json(res, 409, { error: 'This job has no finished PDF to revise' });
+  if (+req.headers['content-length'] > 64 * 1024) return json(res, 413, { error: 'Feedback is too long' });
+  busy = id;
+  let feedback;
+  try { feedback = parseRevision(await readBody(req, 64 * 1024, 'Feedback is too long')); }
+  catch (e) { busy = null; return json(res, e.status || 400, { error: e.message }); }
+  const n = (j.revisions || 0) + 1;
+  const job = jobs.get(id) || { events: [], clients: new Set() };
+  Object.assign(job, { from: job.events.length, finished: false });
+  jobs.set(id, job);
+  json(res, 202, { revision: n, version: n + 1 });
+  revise(id, jobDir, n, j, feedback);
+}
+
 // ---------- http ----------
 function json(res, code, obj) {
   res.writeHead(code, { 'content-type': 'application/json' });
   res.end(JSON.stringify(obj));
 }
 
-function readBody(req) {
+function readBody(req, max = MAX_UPLOAD, tooBig = 'Upload is over 50 MB') {
   return new Promise((resolve, reject) => {
     const chunks = []; let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_UPLOAD) { reject(Object.assign(new Error('Upload is over 50 MB'), { status: 413 })); req.destroy(); return; }
+      if (size > max) { reject(Object.assign(new Error(tooBig), { status: 413 })); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
@@ -300,11 +378,12 @@ function sse(req, res, id) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
   const job = jobs.get(id);
   if (!job) { // server restarted: answer from disk
+    let j = {}; try { j = JSON.parse(fs.readFileSync(path.join(JOBS, id, 'job.json'), 'utf8')); } catch {}
     const pdf = fs.existsSync(path.join(JOBS, id, 'main.pdf'));
-    send(res, pdf ? { type: 'done', data: { pdf: `/api/jobs/${id}/main.pdf`, tex: `/api/jobs/${id}/main.tex` } } : { type: 'failed', data: { error: 'Unknown or interrupted job' } });
+    send(res, pdf ? { type: 'done', data: { ...doneData(id, j), t: Date.now() } } : { type: 'failed', data: { error: 'Unknown or interrupted job' } });
     return res.end();
   }
-  for (const ev of job.events) send(res, ev);
+  for (const ev of job.events.slice(job.from || 0)) send(res, ev);
   if (job.finished) return res.end();
   job.clients.add(res);
   // heartbeat: some browsers/proxies drop an SSE stream that's silent while Claude thinks
@@ -325,16 +404,18 @@ const server = http.createServer((req, res) => {
   const p = url.pathname;
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(ROOT, 'index.html'), 'text/html; charset=utf-8');
   if (req.method === 'POST' && p === '/api/jobs') return createJob(req, res);
-  const m = /^\/api\/jobs\/([^/]+)\/(events|main\.pdf|main\.tex)$/.exec(p);
+  const r = /^\/api\/jobs\/([^/]+)\/revise$/.exec(p);
+  if (req.method === 'POST' && r) return ID_RE.test(r[1]) ? reviseJob(req, res, r[1]) : json(res, 400, { error: 'Bad job id' });
+  const m = /^\/api\/jobs\/([^/]+)\/(events|main\.pdf|main\.tex|v\d{1,3}\.pdf)$/.exec(p);
   if (req.method === 'GET' && m) {
     if (!ID_RE.test(m[1])) return json(res, 400, { error: 'Bad job id' });
     if (m[2] === 'events') return sse(req, res, m[1]);
     const dl = url.searchParams.has('download') ? { 'content-disposition': `attachment; filename="devreport-${m[1]}.${m[2].split('.')[1]}"` } : {};
     if (dl['content-disposition']) res.setHeader('content-disposition', dl['content-disposition']);
-    return serveFile(res, path.join(JOBS, m[1], m[2]), m[2].endsWith('pdf') ? 'application/pdf' : 'text/plain; charset=utf-8');
+    return serveFile(res, path.join(JOBS, m[1], m[2].startsWith('v') ? 'revisions' : '', m[2]), m[2].endsWith('pdf') ? 'application/pdf' : 'text/plain; charset=utf-8');
   }
   json(res, 404, { error: 'Not found' });
 });
 
 if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT}`));
-module.exports = { parseMultipart, normalizeRepoUrl, describeTool };
+module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision };

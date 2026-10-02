@@ -172,6 +172,7 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .feed li.k-humanize .i{background:#efe3ff;color:#6a3fb5}
 .feed li.k-collect .i{background:#e1efe6;color:var(--ok)}
 .feed li.k-template .i{background:#fff1d6;color:var(--warn)}
+.feed li.k-revise .i{background:var(--accent);color:#fff}
 .feed li.k-clone .i,.feed li.k-zip .i,.feed li.k-upload .i{background:#e4ecf7;color:#2c5d9b}
 .feed li.k-done .i{background:var(--ok);color:#fff}
 .feed li.k-failed .i{background:var(--accent);color:#fff}
@@ -184,16 +185,52 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .ffoot .btn{margin-left:auto}
 [data-state=failed] .ffoot .retry{display:inline-flex}
 .ffoot .retry{display:none}
+.ffoot .back:not([hidden]) + .retry{margin-left:0}
+[data-state=failed] .ffoot .back:not([hidden]){display:inline-flex}
+.ffoot .back{display:none}
 
 /* done */
 .v-done{flex-direction:column}
 .v-done iframe{flex:1;border:0;width:100%;background:#525659}
-.dbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-top:1px solid var(--rule)}
+.dbar{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-top:1px solid var(--rule)}
 .dbar .msg{font:italic 19px/1.2 var(--serif);margin-right:auto}
 .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 13px;font:500 13px var(--sans);text-decoration:none;cursor:pointer;transition:.15s}
 .btn:hover{background:var(--ink);color:var(--paper)}
 .btn.solid{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.solid:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn[aria-expanded=true]{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.55;cursor:wait}
+.ver{font:500 11px/1 var(--mono);letter-spacing:.04em;background:var(--ink);color:var(--paper);border-radius:5px;padding:4px 6px;vertical-align:3px;margin-right:4px;font-style:normal}
+
+/* revise drawer: slides up between the PDF and the action bar */
+.rev{flex:0 1 auto;min-height:0;max-height:58%;overflow-y:auto;border-top:1px solid var(--ink);background:var(--card);padding:14px 16px 12px;animation:rise .22s ease both}
+.rev[hidden]{display:none}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.rhead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.rhead h3{margin:0;font:400 23px/1 var(--serif)}
+.rhead h3 i{color:var(--accent)}
+.hist{margin-left:auto;display:flex;gap:4px;align-items:center;font:11px/1 var(--mono);color:var(--muted)}
+.hist a,.hist b{border:1px solid var(--rule);border-radius:5px;padding:4px 6px;color:var(--ink2);text-decoration:none;font-weight:400}
+.hist a:hover{border-color:var(--ink);color:var(--ink)}
+.hist b{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rlab{display:block;font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.rev textarea{min-height:58px}
+.pgs{display:flex;flex-direction:column;gap:6px;margin:12px 0 0}
+.pg{display:grid;grid-template-columns:auto 1fr auto;align-items:stretch;border:1px solid var(--rule);background:#fff;border-radius:10px;overflow:hidden;animation:pop .18s ease;transition:.15s}
+.pg:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px rgba(22,19,15,.07)}
+.pg label{display:flex;align-items:center;gap:6px;padding:0 4px 0 11px;background:var(--rule2);border-right:1px solid var(--rule);font:12px var(--mono);color:var(--ink2);cursor:text}
+.pg input{border:0;background:none;outline:none;min-width:0}
+.pg input[type=number]{width:44px;font:500 14px var(--mono);color:var(--accent-ink);padding:9px 0;-moz-appearance:textfield}
+.pg input[type=number]::-webkit-inner-spin-button{opacity:.5}
+.pg .pn{padding:9px 11px;font-size:14px}
+.pg .pn::placeholder{color:#b0a693}
+.pg button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 12px;font-size:16px}
+.pg button:hover{color:var(--accent)}
+.pg.bad{border-color:var(--accent)}
+.addpg{align-self:flex-start;border:1px dashed #c4b8a2;background:none;border-radius:9px;padding:7px 11px;font:12px var(--mono);color:var(--ink2);cursor:pointer;transition:.15s;margin-top:2px}
+.addpg:hover{border-color:var(--ink);color:var(--ink);border-style:solid}
+.rfoot{display:flex;align-items:center;gap:8px;margin-top:12px}
+.rfoot .hint{margin:0 auto 0 2px;min-height:0;font-size:12px;max-width:40ch}
 
 footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono);color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
@@ -211,6 +248,12 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   .sw{height:78px}
   .feed li{grid-template-columns:40px 24px 1fr;gap:8px;padding:6px 12px}
   .go kbd{display:none}
+  .rev{max-height:none}
+  .v-done iframe{min-height:140px}
+  .dbar{gap:6px;padding:10px 12px}
+  .dbar .msg{flex-basis:100%}
+  .dbar .btn{padding:7px 10px;font-size:12px}
+  .hist{margin-left:0}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -294,13 +337,22 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
       </div>
       <div class="view v-feed">
         <ol class="feed" id="feed"></ol>
-        <div class="ffoot"><span>elapsed</span><span class="clock" id="clock">00:00</span><button type="button" class="btn retry" id="retry">Edit and try again</button></div>
+        <div class="ffoot"><span>elapsed</span><span class="clock" id="clock">00:00</span><button type="button" class="btn back" id="back" hidden>Back to the PDF</button><button type="button" class="btn retry" id="retry">Edit and try again</button></div>
       </div>
       <div class="view v-done">
         <iframe id="pdf" title="Generated PDF"></iframe>
-        <div class="dbar"><span class="msg" id="donemsg">Typeset.</span>
+        <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
+          <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
+          <label class="rlab" for="revgen" id="revlab">Whole deck</label>
+          <textarea id="revgen" maxlength="4000" placeholder="Tighter titles, fewer bullets, a calmer tone…"></textarea>
+          <div class="pgs" id="pgs"><button type="button" class="addpg" id="addpg">+ Note on a page</button></div>
+          <div class="rfoot"><p class="hint" id="reverr" role="alert">Claude edits the existing LaTeX. It won't add facts your files don't have.</p>
+            <button type="submit" class="btn solid" id="revgo">Apply changes</button></div>
+        </form>
+        <div class="dbar"><span class="msg"><span class="ver" id="ver">v1</span><span id="donemsg">Typeset.</span></span>
           <a class="btn solid" id="dlpdf" download>Download PDF</a>
           <a class="btn" id="dltex" download>Download .tex</a>
+          <button type="button" class="btn" id="revopen" aria-expanded="false" aria-controls="rev">Request changes</button>
           <button type="button" class="btn" id="again">New report</button>
         </div>
       </div>
@@ -314,8 +366,8 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 <script>
 const $ = (s) => document.querySelector(s);
 const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'), fileIn = $('#file');
-const ICON = { template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
-let tplFile = null, files = [], es = null, t0 = 0, tick = null;
+const ICON = { revise:'↻', template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
+let tplFile = null, files = [], es = null, t0 = 0, tick = null, jobId = null, last = null;
 
 const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
@@ -366,7 +418,10 @@ tplIn.onchange = () => {
   form.querySelector('[name=kind][value=slides]').checked = true; $('#golabel').textContent = 'Generate slides';
 };
 form.addEventListener('change', (e) => { if (e.target.name === 'kind') $('#golabel').textContent = e.target.value === 'slides' ? 'Generate slides' : 'Generate report'; });
-document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !$('#go').disabled) form.requestSubmit(); });
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+  if (e.target.closest?.('#rev')) { e.preventDefault(); rev.requestSubmit(); } else if (!$('#go').disabled) form.requestSubmit();
+});
 
 function setState(s, pill) {
   panel.dataset.state = s; $('#pill').textContent = pill;
@@ -418,34 +473,79 @@ form.addEventListener('submit', (e) => {
 });
 
 function listen(id, shown = 0, retries = 0) {
-  es?.close();
+  es?.close(); jobId = id;
   history.replaceState(null, '', '#job=' + id); // reload reattaches to this job
   es = new EventSource(`/api/jobs/${id}/events`);
   let n = 0; // the server replays every event on connect; skip the ones already on screen
   es.addEventListener('step', (e) => { if (++n <= shown) return; shown++; retries = 0; const d = JSON.parse(e.data); t0 ||= d.t; addStep(d.icon, d.text, d.t); });
   es.addEventListener('done', (e) => {
-    const d = JSON.parse(e.data); es.close();
-    addStep('done', 'PDF ready', d.t);
+    const d = JSON.parse(e.data); es.close(); t0 ||= d.t;
+    addStep('done', d.version > 1 ? `v${d.version} ready` : 'PDF ready', d.t);
     setTimeout(() => {
-      $('#pdf').src = d.pdf + '#navpanes=0&view=FitH';
-      $('#dlpdf').href = d.pdf + '?download=1';
-      $('#dltex').href = d.tex + '?download=1';
-      $('#donemsg').textContent = `Typeset in ${mmss(d.t - t0)}${d.cost ? ` · $${d.cost.toFixed(2)}` : ''}.`;
-      setState('done', 'Ready');
+      showDone(d);
+      $('#donemsg').textContent = `${d.version > 1 ? 'Revised' : 'Typeset'}${d.t > t0 ? ` in ${mmss(d.t - t0)}` : ''}${d.cost ? ` · $${d.cost.toFixed(2)}` : ''}.`;
     }, 600);
   });
-  es.addEventListener('failed', (e) => { es.close(); fail(JSON.parse(e.data).error); });
+  es.addEventListener('failed', (e) => {
+    es.close(); const d = JSON.parse(e.data);
+    fail(d.error); if (d.pdf) { last = d; $('#back').hidden = false; } // a failed revision keeps the last good PDF
+  });
   es.onerror = () => {
     if (es.readyState !== EventSource.CLOSED) return; // browser is already retrying
     if (retries < 5) setTimeout(() => listen(id, shown, retries + 1), 1000 * (retries + 1));
     else fail('Lost connection to the server.');
   };
 }
+function showDone(d) {
+  last = d;
+  const v = d.version || 1, what = d.kind === 'slides' ? 'deck' : 'report';
+  $('#pdf').src = `${d.pdf}?v=${d.t}#navpanes=0&view=FitH`; // cache-buster: same URL, new PDF after a revision
+  $('#dlpdf').href = d.pdf + '?download=1';
+  $('#dltex').href = d.tex + '?download=1';
+  $('#ver').textContent = 'v' + v;
+  $('#revlab').textContent = 'Whole ' + what;
+  $('#hist').innerHTML = v > 1 ? 'versions ' + Array.from({ length: v - 1 }, (_, i) => `<a href="/api/jobs/${jobId}/v${i + 1}.pdf" target="_blank" rel="noopener" title="Open v${i + 1} in a new tab">v${i + 1}</a>`).join('') + `<b>v${v}</b>` : '';
+  setState('done', 'Ready');
+}
+// revision drawer
+const rev = $('#rev'), pgs = $('#pgs');
+const toggleRev = (open = rev.hidden) => { rev.hidden = !open; $('#revopen').setAttribute('aria-expanded', open); if (open) $('#revgen').focus(); };
+$('#revopen').onclick = () => toggleRev();
+function addPage(n = '') {
+  const row = document.createElement('div');
+  row.className = 'pg';
+  row.innerHTML = `<label>Page <input type="number" min="1" max="999" step="1" inputmode="numeric" value="${n}" aria-label="Page number"></label><input class="pn" maxlength="1000" placeholder="Make the title shorter" aria-label="Note for this page"><button type="button" aria-label="Remove this page note">×</button>`;
+  row.querySelector('button').onclick = () => row.remove();
+  pgs.insertBefore(row, $('#addpg'));
+  row.querySelector(n ? '.pn' : 'input').focus();
+}
+$('#addpg').onclick = () => { const ns = [...pgs.querySelectorAll('input[type=number]')].map((i) => +i.value || 0); addPage(ns.length ? Math.max(...ns) + 1 : ''); };
+const revHint = (msg) => { $('#reverr').textContent = msg || "Claude edits the existing LaTeX. It won't add facts your files don't have."; $('#reverr').classList.toggle('err', !!msg); };
+rev.addEventListener('submit', async (e) => {
+  e.preventDefault(); revHint();
+  const rows = [...pgs.querySelectorAll('.pg')].filter((r) => r.querySelector('.pn').value.trim());
+  rows.forEach((r) => r.classList.remove('bad'));
+  const bad = rows.filter((r) => { const v = r.querySelector('input').value; return !/^\d+$/.test(v) || +v < 1 || +v > 999; });
+  if (bad.length) { bad.forEach((r) => r.classList.add('bad')); return revHint('Give each page note a page number.'); }
+  const general = $('#revgen').value.trim(), pages = rows.map((r) => ({ page: +r.querySelector('input').value, note: r.querySelector('.pn').value.trim() }));
+  if (!general && !pages.length) { $('#revgen').focus(); return revHint('Write what should change, for the whole thing or a page.'); }
+  $('#revgo').disabled = true;
+  let r, j = {};
+  try { r = await fetch(`/api/jobs/${jobId}/revise`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ general, pages }) }); j = await r.json().catch(() => ({})); }
+  catch { r = { ok: false }; j.error = 'Could not reach the server. Is node server.js running?'; }
+  $('#revgo').disabled = false;
+  if (!r.ok) return revHint(j.error || `Revision failed (${r.status})`);
+  $('#revgen').value = ''; pgs.querySelectorAll('.pg').forEach((p) => p.remove()); toggleRev(false); $('#back').hidden = true;
+  feed.innerHTML = ''; t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
+  setState('running', `Revising to v${j.version}`);
+  listen(jobId);
+});
+$('#back').onclick = () => { $('#back').hidden = true; showDone(last); };
 function fail(msg) {
   addStep('failed', msg);
   setState('failed', 'Failed');
 }
-const reset = () => { es?.close(); history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; $('#pdf').removeAttribute('src'); form.scrollIntoView({ behavior: 'smooth' }); };
+const reset = () => { es?.close(); toggleRev(false); $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; $('#pdf').removeAttribute('src'); form.scrollIntoView({ behavior: 'smooth' }); };
 $('#retry').onclick = reset;
 $('#again').onclick = reset;
 // reattach after a reload: #job=<id>
