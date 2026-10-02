@@ -40,7 +40,21 @@ node --test test.js            # collector tests (bare `node --test` would also 
 node server.js                 # http://127.0.0.1:3000
 ```
 
-No `npm install`: the server is Node's standard library only. Each run uses **your own** Claude Code login and takes about 1–3 minutes. There is deliberately no public hosted version, since it would run strangers' jobs on one person's subscription.
+The default (cli) engine needs no `npm install`: the server is Node's standard library only. Each run uses **your own** Claude Code login and takes about 1–3 minutes. There is deliberately no public hosted version, since it would run strangers' jobs on one person's subscription.
+
+## Engines
+
+`DEVREPORT_ENGINE` picks who runs the agent (default `cli`):
+
+- **cli**: Claude Code headless (`claude -p`) with the tool allowlist above.
+- **ai**: `agent.js`, our own loop on the [Vercel AI SDK](https://ai-sdk.dev) (`npm install` first). The model gets exactly four tools, `read_file`, `write_file`, `edit_file` and `compile` (`tectonic main.tex`, no arguments), and every path goes through one check that refuses anything outside the job folder, any symlink, and the server's own files (job.json, facts.json, data/, input/ ...). The skill files are readable, not writable. So the sandbox is tighter than the cli allowlist, and the model is pluggable via `DEVREPORT_MODEL=<provider>:<model>`:
+  - `claude-code:opus` (default) or `claude-code:sonnet`: runs on your Claude Code login through `ai-sdk-provider-claude-code`, for local testing. Our tools go in as an in-process MCP server and every built-in Claude Code tool is switched off.
+  - `openrouter:<model id>` with `OPENROUTER_API_KEY`: any OpenRouter model, with the AI SDK running the tool loop (at most 80 steps). Wired and type-checked, but not yet tested against a real key.
+
+```bash
+npm install
+DEVREPORT_ENGINE=ai DEVREPORT_MODEL=claude-code:opus node server.js
+```
 
 ## Files
 
@@ -49,7 +63,8 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 | `collect.js` | Deterministic parsing of inputs → `data/*.csv` + `facts.json` |
 | `pptx.js` | `.pptx` template → colours, fonts, layout boxes, media, thumbnail in `template/` |
 | `test.js` | `node:test` tests for the collector and the template extractor |
-| `server.js` | Uploads, zip/GitHub intake, runs the collector and `claude -p`, streams progress over SSE |
+| `server.js` | Uploads, zip/GitHub intake, runs the collector and the agent (`claude -p` or `agent.js`), streams progress over SSE |
+| `agent.js` | The `ai` engine: AI SDK agent loop with four sandboxed tools, printing the same stream-json as `claude -p` |
 | `index.html` | The whole UI, one file |
 | `.claude/skills/devreport/` | The pipeline Claude follows, tested chart snippets, the prompt, the themes |
 | `.claude/skills/humanizer/` | Vendored humanizer skill (MIT, see its LICENSE) |
