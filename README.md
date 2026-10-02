@@ -2,7 +2,7 @@
 
 Turn a messy project folder into a polished PDF report or slide deck.
 
-Drop in dev logs, notes, a CSV, screenshots, a `.zip`, or just paste a GitHub link. devreport analyses it with plain code, asks you three optional questions it can't answer from files (what problem it solves, what you learned, what's next), then has Claude Code write and compile a LaTeX report or Beamer deck, live in your browser.
+Drop in dev logs, notes, a CSV, screenshots, a `.zip`, or just paste a GitHub link. devreport analyses it with plain code, asks you four optional questions it can't answer from files (what problem it solves, the result you're proudest of, what you learned, what's next), then has Claude Code write and compile a LaTeX report or Beamer deck, live in your browser.
 
 **Who it's for:** student builders who have to write up a hackathon, coursework or side project and would rather keep building.
 
@@ -13,14 +13,14 @@ Samples: [report (Paper theme)](samples/report-paper.pdf) · [slides (Midnight t
 ```
 upload / zip / GitHub link
   → collect.js     parses git history, logs, tables, notes, images → data/*.csv + facts.json
-  → questions      3 optional answers saved as answers.md
+  → questions      4 optional answers saved as answers.md
   → claude -p      writes main.tex, compiles with tectonic, fixes errors, humanizes prose, recompiles
   → main.pdf       shown inline, with the .tex to download
 ```
 
 - **Charts can't lie.** Every chart is pgfplots reading a CSV that `collect.js` computed (`\addplot table{data/commits_per_day.csv}`). Claude never types a number into a chart, and stat numbers come from `facts.json`.
-- **Our code does the analysis, Claude writes the prose.** Commits per day, work hours, most-edited files, commit types, lines per language, recurring errors (numbers/IDs normalized so repeats group together), and column-type detection for your own CSV/JSON are all deterministic and tested.
-- **Locked-down agent.** Claude Code runs headless with only `Read,Write,Edit,Bash(tectonic:*),Skill`: no general shell. Uploaded content is treated as data, never instructions.
+- **Our code does the analysis, Claude writes the prose.** Milestones from git history (vendored and generated code excluded), the likely entry points of the code, recurring errors (numbers/IDs normalized so repeats group together), and column-type detection for your own CSV/JSON are all deterministic and tested. Commit counts and lines of code aren't treated as evidence of anything: they only show up as a timeline or an appendix sentence.
+- **Locked-down agent.** Claude Code runs headless with only `Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill`: no general shell, and it can only write inside the job folder. Uploaded content is treated as data, never instructions.
 - **Safe intake.** Zips are size-checked before extracting (zip bombs), path-escaping entries are rejected, symlinks are deleted. GitHub URLs are validated and cloned without a shell, with a timeout.
 - **Themes.** Paper (serif, academic) and Midnight (dark, neon, terminal). Each is one `.sty` that works for both reports and slides, charts included.
 - **Your own PowerPoint template (slides).** Upload a `.pptx` and `pptx.js` pulls out its colour palette, heading/body fonts, logo, title/body box positions and preview thumbnail into `template/template.json`. Claude writes a matching Beamer theme from that, compiles a test slide, compares it with the thumbnail and adjusts. Sample: [slides from a custom template](samples/slides-custom-template.pdf).
