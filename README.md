@@ -71,6 +71,8 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 - [Moloch](https://github.com/jolars/moloch) Beamer theme by Johan Larsson, vendored in `themes/vendor/moloch/` (CC BY-SA 4.0, see its LICENSE)
 - [Focus](https://github.com/elauksap/focus-beamertheme) Beamer theme by Pasquale Claudio Africa, vendored in `themes/vendor/focus/` (GPL-3.0, see its LICENSE)
 - Trigon Beamer theme (CTAN, loaded from tectonic's bundle) and Beamer's built-in Madrid theme
+- [pdf.js](https://mozilla.github.io/pdf.js/) by Mozilla, loaded from cdnjs for the in-page PDF viewer (Apache-2.0)
+- [Lucide](https://lucide.dev) icons in the live feed, path data copied into `index.html` (ISC)
 - [pgfplots](https://ctan.org/pkg/pgfplots), [pgf-pie](https://ctan.org/pkg/pgf-pie) and [tectonic](https://tectonic-typesetting.github.io)
 
 ## AI disclosure

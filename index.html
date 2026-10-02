@@ -206,7 +206,13 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .feed li .i{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font:15px/1 var(--sans);background:var(--rule2);color:var(--ink2)}
 .feed li .x{padding-top:3px;font-size:14px;line-height:1.45;word-break:break-word}
 .feed li.note .x{color:var(--ink2);font-family:var(--serif);font-style:italic;font-size:16.5px;line-height:1.3;padding-top:2px}
-.feed li.k-write .i{background:#ffe9df;color:var(--accent-ink)}
+.feed li.k-write .i,.feed li.k-edit .i{background:#ffe9df;color:var(--accent-ink)}
+.feed li.k-think .i{background:#f3ecfb;color:#6a3fb5}
+.feed li.k-skill .i,.feed li.k-theme .i{background:#fff1d6;color:var(--warn)}
+.feed li.k-data .i,.feed li.k-plan .i{background:#e1efe6;color:var(--ok)}
+.feed li.k-image .i,.feed li.k-review .i,.feed li.k-search .i{background:#e4ecf7;color:#2c5d9b}
+.feed li.k-tex .i,.feed li.k-code .i,.feed li.k-doc .i{background:#ece5d8;color:var(--ink)}
+.feed li.k-blocked .i{background:#fbd6c8;color:var(--accent-ink)}
 .feed li.k-compile .i{background:var(--ink);color:var(--paper)}
 .feed li.k-error .i{background:#fbd6c8;color:var(--accent-ink)}
 .feed li.k-error .x{color:var(--accent-ink)}
@@ -236,6 +242,54 @@ form.locked .sec{opacity:.55;pointer-events:none;transition:opacity .3s}
 .v-done{flex-direction:column}
 .pdfwrap{flex:1;min-height:0;position:relative;display:flex}
 .v-done iframe{flex:1;border:0;width:100%;background:#525659;transition:opacity .2s}
+/* pdf viewer (pdf.js): slides one at a time + thumbnails, reports as a lazy scroll */
+.pv{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative;background:linear-gradient(180deg,#efe9de,#e8e1d3)}
+.pv[hidden]{display:none}
+.pvstage{flex:1;min-height:0;position:relative;outline:none}
+.pv[data-mode=slides] .pvstage{display:grid;place-items:center;padding:20px 22px;container-type:size;touch-action:pan-y pinch-zoom}
+.pv[data-mode=report] .pvstage{overflow-y:auto;padding:18px 18px 4px;scrollbar-width:thin}
+.pvpage{position:relative;background:#fff;border-radius:3px;box-shadow:0 0 0 1px rgba(22,19,15,.1),0 1px 0 var(--rule),0 18px 40px -20px rgba(22,19,15,.35)}
+.pvone{width:min(100cqw,100cqh * var(--ar,1.778));aspect-ratio:var(--ar,1.778)}
+.pv[data-mode=report] .pvpage{max-width:900px;margin:0 auto 16px;aspect-ratio:var(--ar,.707)}
+.pvpage canvas{display:block;width:100%;height:100%;border-radius:inherit;animation:fade .14s ease both}
+.sk{background:linear-gradient(100deg,#f7f3eb 40%,#fffdf9 50%,#f7f3eb 60%) 0 0/300% 100%;animation:shim 1.2s linear infinite}
+.sk::before,.sk::after{content:"";position:absolute;left:7%;border-radius:3px;background:rgba(22,19,15,.055)}
+.sk::before{top:9%;width:42%;height:7%}
+.sk::after{top:24%;right:7%;bottom:12%;background:repeating-linear-gradient(180deg,rgba(22,19,15,.045) 0 6%,transparent 0 12%)}
+@keyframes shim{from{background-position:100% 0}to{background-position:0 0}}
+.pvnote{position:absolute;top:10px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:9px;padding:6px 10px;font:500 12px var(--sans);cursor:pointer;box-shadow:3px 3px 0 rgba(22,19,15,.1);opacity:0;transform:translateY(-3px);transition:.15s}
+.pvpage:hover .pvnote,.pvnote:focus-visible,.pvnote.has{opacity:1;transform:none}
+.pvnote:hover{background:var(--ink);color:var(--paper)}
+.pvnote:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pvnote.has::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+@media (hover:none){.pvnote{opacity:1;transform:none}}
+.pvbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--rule);background:var(--card)}
+.pv[data-mode=report] .pvbar{display:none}
+.pvnav{flex:none;display:flex;align-items:center;border:1px solid var(--ink);border-radius:9px;overflow:hidden;background:#fff}
+.pvnav button{border:0;background:none;width:32px;height:32px;cursor:pointer;font-size:17px;line-height:1;color:var(--ink2);transition:.12s}
+.pvnav button:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.pvnav button:disabled{opacity:.3;cursor:default}
+.pvnav output{min-width:7ch;text-align:center;font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.pvnav output b{font-weight:500;color:var(--accent-ink)}
+.pvthumbs{flex:1;min-width:0;position:relative;display:flex;gap:8px;overflow-x:auto;padding:4px 3px;scrollbar-width:thin;scroll-behavior:smooth}
+.pvt{flex:none;position:relative;width:88px}
+.pvt > button:first-child{display:block;width:100%;aspect-ratio:var(--ar,1.778);padding:0;border:0;border-radius:4px;overflow:hidden;background:#fff;box-shadow:0 0 0 1px rgba(22,19,15,.14);opacity:.6;cursor:pointer;position:relative;transition:.15s}
+.pvt > button:first-child:hover,.pvt[aria-current=true] > button:first-child{opacity:1}
+.pvt[aria-current=true] > button:first-child{box-shadow:0 0 0 1.5px var(--ink)}
+.pvt > button:first-child:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pvt canvas{display:block;width:100%;height:100%;animation:fade .14s ease both}
+.pvt .n{position:absolute;left:3px;bottom:3px;font:500 9.5px/1 var(--mono);background:rgba(251,248,242,.92);color:var(--ink2);border-radius:3px;padding:2px 4px}
+.pvt .c{position:absolute;top:3px;right:3px;width:20px;height:20px;padding:0;display:grid;place-items:center;border:1px solid var(--ink);border-radius:5px;background:var(--card);color:var(--ink);cursor:pointer;opacity:0;transition:.15s}
+.pvt:hover .c,.pvt .c:focus-visible{opacity:1}
+.pvt .c:hover{background:var(--ink);color:var(--paper)}
+@media (hover:none){.pvt .c{opacity:1}}
+.pvt.has::after{content:"";position:absolute;top:-3px;left:-3px;width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--card);pointer-events:none}
+.pvcount{position:absolute;right:14px;bottom:12px;z-index:2;font:500 11.5px/1 var(--mono);font-variant-numeric:tabular-nums;background:var(--ink);color:var(--paper);border-radius:99px;padding:6px 10px;box-shadow:3px 3px 0 rgba(22,19,15,.12);pointer-events:none}
+.pv[data-mode=slides] .pvcount{display:none}
+@container (max-height:300px){.pvnote span{display:none}.pvnote{padding:6px 7px;top:6px;right:6px}}
+.pv[data-mode=slides] .pvstage:fullscreen{background:#000;padding:0}
+.pvstage:fullscreen .pvone{box-shadow:none;border-radius:0}
+.pvstage:fullscreen .pvnote{display:none}
 .veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,19,15,.45);backdrop-filter:blur(2px);color:var(--paper);font:italic 22px/1.2 var(--serif);text-align:center;animation:fade .15s ease both}
 .veil[hidden]{display:none}
 .veil small{display:block;font:12px var(--mono);font-style:normal;opacity:.75;margin-top:6px}
@@ -327,6 +381,12 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   .go kbd{display:none}
   .rev{max-height:none}
   .v-done iframe{min-height:140px}
+  .pv{min-height:220px}
+  .pv[data-mode=slides] .pvstage{padding:12px}
+  .pvbar{flex-wrap:wrap;padding:8px 10px}
+  .pvthumbs{order:3;flex-basis:100%}
+  .pvt{width:72px}
+  #pvpresent{margin-left:auto}
   .seg.th{grid-template-columns:repeat(2,1fr)}
   .dbar{gap:6px;padding:10px 12px}
   .dbar .msg{flex-basis:100%}
@@ -344,7 +404,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   <div class="wrap">
     <div class="bar">
       <div class="logo"><b>dev</b><i>report</i> <span class="tag">v0.1 · local</span></div>
-      <div class="pipeline"><span>your files</span><em>→</em><span>collect.js</span><em>→</em><span>CSV</span><em>→</em><span>Claude Code</span><em>→</em><span>LaTeX</span><em>→</em><span>PDF</span></div>
+      <div class="pipeline"><span>your files</span><em>→</em><span>collect.js</span><em>→</em><span>CSV</span><em>→</em><span>Agent</span><em>→</em><span>LaTeX</span><em>→</em><span>PDF</span></div>
     </div>
   </div>
 </header>
@@ -352,7 +412,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
 <div class="wrap">
   <section class="hero">
     <h1>Your messy repo, <i>typeset.</i></h1>
-    <p class="lede">Drop in dev logs, notes, screenshots, a zip, or a GitHub link. devreport counts the commits and charts the real numbers. Claude Code then writes the LaTeX, compiles it, fixes its own errors, and gives you a PDF report or slide deck.</p>
+    <p class="lede">Drop in dev logs, notes, screenshots, a zip, or a GitHub link. devreport counts the commits and charts the real numbers. The agent then writes the LaTeX, compiles it, fixes its own errors, and gives you a PDF report or slide deck.</p>
   </section>
 </div>
 
@@ -408,7 +468,7 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
     <div class="pbody">
       <div class="view v-idle">
         <div class="mock"><div class="h">Project Report</div><div class="k">47 commits · 12 days · 3 authors</div><div class="ln"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:94%"></div><div class="ch"><i style="height:30%;animation-delay:.05s"></i><i style="height:55%;animation-delay:.1s"></i><i style="height:40%;animation-delay:.15s"></i><i style="height:85%;animation-delay:.2s"></i><i style="height:62%;animation-delay:.25s"></i><i style="height:100%;animation-delay:.3s"></i><i style="height:48%;animation-delay:.35s"></i></div><div class="ln"></div><div class="ln" style="width:76%"></div></div>
-        <p><b>Your PDF shows up here.</b>Every chart is drawn from numbers counted in your files. Claude only writes the words.</p>
+        <p><b>Your PDF shows up here.</b>Every chart is drawn from numbers counted in your files. The agent only writes the words.</p>
       </div>
       <div class="view v-feed">
         <ol class="feed" id="feed"></ol>
@@ -424,13 +484,23 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
       </div>
       <div class="view v-done">
         <div class="tstrip" id="tstrip" role="group" aria-label="Theme"><span class="rlab">Theme</span><span id="tchips" style="display:contents"></span><span class="tmsg" id="tmsg" role="status"></span></div>
-        <div class="pdfwrap"><iframe id="pdf" title="Generated PDF"></iframe><div class="veil" id="veil" hidden></div></div>
+        <div class="pdfwrap">
+          <div class="pv" id="pv" data-mode="slides" hidden>
+            <div class="pvstage" id="pvstage" tabindex="-1" aria-label="PDF pages"></div>
+            <div class="pvbar">
+              <div class="pvnav"><button type="button" id="pvprev" aria-label="Previous slide">‹</button><output id="pvn" aria-live="polite"></output><button type="button" id="pvnext" aria-label="Next slide">›</button></div>
+              <div class="pvthumbs" id="pvthumbs" role="list" aria-label="Slides"></div>
+              <button type="button" class="btn" id="pvpresent"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Present</button>
+            </div>
+            <span class="pvcount" id="pvcount"></span>
+          </div>
+          <iframe id="pdf" title="Generated PDF" hidden></iframe><div class="veil" id="veil" hidden></div></div>
         <form class="rev" id="rev" hidden novalidate aria-label="Request changes">
           <div class="rhead"><h3>What should <i>change?</i></h3><span class="hist" id="hist"></span></div>
           <label class="rlab" for="revgen" id="revlab">Whole deck</label>
           <textarea id="revgen" maxlength="4000" placeholder="Tighter titles, fewer bullets, a calmer tone…"></textarea>
           <div class="pgs" id="pgs"><button type="button" class="addpg" id="addpg">+ Note on a page</button></div>
-          <div class="rfoot"><p class="hint" id="reverr" role="alert">Claude edits the existing LaTeX. It won't add facts your files don't have.</p>
+          <div class="rfoot"><p class="hint" id="reverr" role="alert">The agent edits the existing LaTeX. It won't add facts your files don't have.</p>
             <button type="submit" class="btn solid" id="revgo">Apply changes</button></div>
         </form>
         <div class="dbar"><span class="msg"><span class="ver" id="ver">v1</span><span id="donemsg">Typeset.</span></span>
@@ -453,12 +523,43 @@ footer{border-top:1px solid var(--rule);padding:20px 0 34px;font:12px var(--mono
   <p class="tpcred" id="tpcred"></p>
 </div></dialog>
 
-<div class="wrap"><footer><span>Runs locally on your own Claude Code login. Uploads stay in jobs/ on this machine.</span><span>LaTeX by tectonic · charts by pgfplots</span></footer></div>
+<div class="wrap"><footer><span>Runs locally on your machine. Uploads stay in jobs/ on this machine.</span><span>LaTeX by tectonic · charts by pgfplots</span></footer></div>
 
 <script>
 const $ = (s) => document.querySelector(s);
 const form = $('#f'), panel = $('#panel'), feed = $('#feed'), drop = $('#drop'), fileIn = $('#file');
-const ICON = { ask:'?', answer:'↳', revise:'↻', template:'◧', upload:'↑', zip:'⧉', clone:'⑂', collect:'∑', read:'◔', write:'✎', compile:'⚙', error:'!', humanize:'❦', think:'…', note:'“', done:'✓', failed:'×' };
+// feed icons: inner SVG of Lucide icons (ISC), drawn 24x24 with stroke=currentColor; unknown keys get a dot
+const ICON = {
+  upload: '<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+  zip: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  clone: '<path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  collect: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  template: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2z"/>',
+  think: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>',
+  skill: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  data: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 9v12"/><path d="M15 9v12"/>',
+  code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+  review: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  tex: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  write: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
+  theme: '<path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z"/><path d="M16.7 13H19a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H7"/><path d="M7 17h.01"/><path d="m11 8 2.3-2.3a2.4 2.4 0 0 1 3.4 0l1.9 1.9a2.4 2.4 0 0 1 0 3.43L9.9 19.8"/>',
+  compile: '<path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91"/>',
+  humanize: '<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/>',
+  plan: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  ask: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  answer: '<path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
+  revise: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  blocked: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  error: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  note: '<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 0-1 1.03V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>',
+  done: '<path d="M20 6 9 17l-5-5"/>',
+  failed: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+};
+const iconSvg = (k) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k] || '<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>'}</svg>`;
 let tplFile = null, files = [], es = null, t0 = 0, tick = null, jobId = null, last = null;
 
 // themes: id, name, a few words, formats, a line for the preview, credit. Slides-only themes are Beamer themes on the shared dr* macros
@@ -570,7 +671,7 @@ function addStep(icon, text, t = Date.now()) {
   feed.querySelector('li.live')?.classList.remove('live');
   const li = document.createElement('li');
   li.className = `k-${icon}${icon === 'note' ? ' note' : ''}${icon === 'done' || icon === 'failed' ? '' : ' live'}`;
-  li.innerHTML = `<time>${mmss(t - t0)}</time><span class="i">${ICON[icon] || '·'}</span><span class="x">${esc(text)}</span>`;
+  li.innerHTML = `<time>${mmss(t - t0)}</time><span class="i">${iconSvg(icon)}</span><span class="x">${esc(text)}</span>`;
   feed.appendChild(li); feed.scrollTop = feed.scrollHeight;
 }
 
@@ -647,7 +748,7 @@ function listen(id, shown = 0, retries = 0) {
 function showDone(d) {
   last = d;
   const v = d.version || 1, what = d.kind === 'slides' ? 'deck' : 'report';
-  $('#pdf').src = `${d.pdf}?v=${d.t}#navpanes=0&view=FitH`; // cache-buster: same URL, new PDF after a revision
+  showPdf(`${d.pdf}?v=${d.t}`, d.kind); // cache-buster: same URL, new PDF after a revision
   $('#dlpdf').href = d.pdf + '?download=1';
   $('#dltex').href = d.tex + '?download=1';
   $('#ver').textContent = 'v' + v;
@@ -678,10 +779,8 @@ $('#tchips').addEventListener('click', async (e) => {
   catch { r = { ok: false }; j.error = 'Could not reach the server.'; }
   clearTimeout(slow);
   if (r.ok) {
-    const iframe = $('#pdf');
-    iframe.addEventListener('load', () => { veil.hidden = true; }, { once: true });
+    showPdf(j.pdf, last.kind).finally(() => { veil.hidden = true; });
     setTimeout(() => { veil.hidden = true; }, 4000);
-    iframe.src = `${j.pdf}#navpanes=0&view=FitH`;
     last = { ...last, theme };
     chips.forEach((c) => c.setAttribute('aria-pressed', c === chip));
     $('#tmsg').textContent = j.cached ? 'cached' : (j.ms / 1000).toFixed(1) + ' s';
@@ -762,6 +861,126 @@ tpop.addEventListener('close', () => { clearInterval(pvCycle); pvFor = null; });
 tpop.addEventListener('click', (e) => { if (e.target === tpop) tpop.close(); }); // the backdrop
 $('#tpx').onclick = () => tpop.close();
 ['pointerover', 'focusin', 'click'].forEach((ev) => $('#tpth').addEventListener(ev, (e) => { const b = e.target.closest('button'); if (b) { clearInterval(pvCycle); pvSet(+b.dataset.i); } }));
+// pdf viewer: pdf.js from cdnjs. Slides one at a time with thumbnails and a present mode; reports as a lazy fit-width scroll.
+// If pdf.js can't load (offline) the browser's own viewer in the iframe takes over
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/';
+let pdfjsLib = null;
+const loadPdfjs = () => pdfjsLib ||= import(PDFJS + 'pdf.min.mjs').then((m) => { m.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs'; return m; }, (e) => { pdfjsLib = null; throw e; });
+const pv = $('#pv'), stage = $('#pvstage'), thumbs = $('#pvthumbs'), pdfFrame = $('#pdf');
+const V = { doc: null, kind: 'slides', job: null, cur: 0, n: 0, token: 0, paint: 0, cache: new Map() };
+const NOTE_IC = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
+const noteBtn = (i) => `<button type="button" class="pvnote" data-note="${i + 1}">${NOTE_IC}<span>Note on this page</span></button>`;
+const skeleton = (kind) => kind === 'slides' ? `<div class="pvpage pvone sk">${noteBtn(V.cur)}</div>` : `<div class="pvpage sk"></div>`;
+// page i (0-based) as a canvas w css px wide, at the screen's pixel density
+async function render(i, w) {
+  const page = await V.doc.getPage(i + 1), vp = page.getViewport({ scale: w * Math.min(devicePixelRatio || 1, 3) / page.getViewport({ scale: 1 }).width });
+  const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  return c;
+}
+const pageAt = (i, w) => { const k = i + '@' + w; if (!V.cache.has(k)) V.cache.set(k, render(i, w).catch(() => { V.cache.delete(k); return null; })); return V.cache.get(k); };
+async function showPdf(url, kind) {
+  const tok = ++V.token;
+  if (V.job !== jobId) { V.cur = 0; V.job = jobId; }
+  if (!V.doc) { pv.hidden = false; pv.dataset.mode = kind; pv.style.removeProperty('--ar'); stage.innerHTML = skeleton(kind); thumbs.innerHTML = ''; $('#pvn').textContent = ''; $('#pvcount').textContent = ''; }
+  let doc, vp;
+  try { doc = await (await loadPdfjs()).getDocument({ url, isEvalSupported: false }).promise; vp = (await doc.getPage(1)).getViewport({ scale: 1 }); }
+  catch (err) {
+    if (tok !== V.token) return;
+    console.warn('pdf.js unavailable, using the browser viewer', err);
+    V.doc?.destroy(); V.doc = null; pv.hidden = true; pdfFrame.hidden = false;
+    return new Promise((done) => { pdfFrame.addEventListener('load', done, { once: true }); setTimeout(done, 4000); pdfFrame.src = url + '#navpanes=0&view=FitH'; });
+  }
+  if (tok !== V.token) return doc.destroy();
+  V.doc?.destroy(); Object.assign(V, { doc, kind, n: doc.numPages, cur: Math.min(V.cur, doc.numPages - 1) }); V.cache.clear(); io.disconnect();
+  pdfFrame.hidden = true; pdfFrame.removeAttribute('src'); pv.hidden = false; pv.dataset.mode = kind;
+  pv.style.setProperty('--ar', vp.width / vp.height);
+  const slides = kind === 'slides', olds = [...stage.children].map((el) => el.querySelector('canvas'));
+  stage.innerHTML = slides ? skeleton(kind) : Array.from({ length: V.n }, (_, i) => `<div class="pvpage sk" data-i="${i}">${noteBtn(i)}</div>`).join('');
+  [...stage.children].forEach((el, i) => { if (olds[i]) { el.prepend(olds[i]); el.classList.remove('sk'); } }); // the old version stays up until the new one is drawn
+  thumbs.innerHTML = slides ? Array.from({ length: V.n }, (_, i) => `<div class="pvt" role="listitem" data-i="${i}"><button type="button" class="sk" aria-label="Slide ${i + 1}"><span class="n">${i + 1}</span></button><button type="button" class="c" data-note="${i + 1}" aria-label="Note on slide ${i + 1}" title="Note on this slide">${NOTE_IC}</button></div>`).join('') : '';
+  if (slides) { await go(V.cur); paintThumbs(tok); }
+  else { stage.querySelectorAll('.pvpage').forEach((el) => io.observe(el)); stage.scrollTop = V.cur ? stage.children[V.cur].offsetTop - 18 : 0; count(); }
+  markNotes();
+}
+function clearPdf() { V.token++; V.doc?.destroy(); Object.assign(V, { doc: null, job: null, cur: 0 }); V.cache.clear(); io.disconnect(); stage.innerHTML = thumbs.innerHTML = ''; pv.hidden = true; pdfFrame.removeAttribute('src'); }
+// slides: show slide i, then prefetch its neighbours; only those stay cached
+async function go(i) {
+  if (!V.doc || V.kind !== 'slides') return;
+  V.cur = i = Math.max(0, Math.min(V.n - 1, i));
+  $('#pvn').innerHTML = `<b>${i + 1}</b> / ${V.n}`;
+  $('#pvprev').disabled = i === 0; $('#pvnext').disabled = i === V.n - 1;
+  thumbs.querySelectorAll('.pvt').forEach((t, j) => t.setAttribute('aria-current', j === i));
+  const t = thumbs.children[i]; if (t) thumbs.scrollTo({ left: t.offsetLeft - (thumbs.clientWidth - t.offsetWidth) / 2 });
+  const box = stage.querySelector('.pvone'); box.querySelector('.pvnote').dataset.note = i + 1; markNotes();
+  const w = box.clientWidth; if (!w) return; // hidden: the ResizeObserver draws it once it shows
+  const want = ++V.paint, c = await pageAt(i, w);
+  if (!c || want !== V.paint || !box.isConnected) return;
+  box.querySelector('canvas')?.remove(); box.prepend(c); box.classList.remove('sk');
+  for (const k of V.cache.keys()) { const [p, kw] = k.split('@'); if (+kw !== w || Math.abs(p - i) > 1) V.cache.delete(k); }
+  if (i + 1 < V.n) pageAt(i + 1, w); if (i > 0) pageAt(i - 1, w);
+}
+async function paintThumbs(tok) {
+  for (const t of thumbs.children) {
+    const b = t.firstElementChild, c = await render(+t.dataset.i, b.clientWidth || 88).catch(() => null);
+    if (tok !== V.token) return;
+    if (c) { b.prepend(c); b.classList.remove('sk'); }
+  }
+}
+// reports: draw pages as they near the viewport; redraw when the width changes
+const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && paintPage(e.target)), { root: stage, rootMargin: '100% 0px' });
+async function paintPage(el) {
+  const w = el.clientWidth, tok = V.token; if (!w || +el.dataset.w === w) return;
+  el.dataset.w = w;
+  const c = await render(+el.dataset.i, w).catch(() => null);
+  if (!c || tok !== V.token || +el.dataset.w !== w) return;
+  el.querySelector('canvas')?.remove(); el.prepend(c); el.classList.remove('sk'); el.style.aspectRatio = c.width / c.height;
+}
+function count() {
+  if (V.kind !== 'report' || !V.doc) return;
+  const y = stage.scrollTop + stage.clientHeight * .4, ps = stage.children;
+  let i = 0; while (i < ps.length - 1 && ps[i + 1].offsetTop <= y) i++;
+  V.cur = i; $('#pvcount').textContent = `${i + 1} / ${V.n}`;
+}
+stage.addEventListener('scroll', count, { passive: true });
+let resized;
+new ResizeObserver(() => { clearTimeout(resized); resized = setTimeout(() => {
+  if (!V.doc) return;
+  if (V.kind === 'slides') return go(V.cur);
+  const sr = stage.getBoundingClientRect();
+  for (const el of stage.children) { const r = el.getBoundingClientRect(); if (r.bottom > sr.top - sr.height && r.top < sr.bottom + sr.height) paintPage(el); }
+  count();
+}, stage.querySelector('canvas') ? 120 : 0); }).observe(stage);
+// pages with a pending note get a dot on their thumbnail / note button
+function markNotes() {
+  const has = new Set([...pgs.querySelectorAll('.pg input[type=number]')].map((i) => +i.value).filter(Boolean));
+  thumbs.querySelectorAll('.pvt').forEach((t) => t.classList.toggle('has', has.has(+t.dataset.i + 1)));
+  stage.querySelectorAll('.pvnote').forEach((b) => b.classList.toggle('has', has.has(+b.dataset.note)));
+}
+$('#pvprev').onclick = () => go(V.cur - 1);
+$('#pvnext').onclick = () => go(V.cur + 1);
+thumbs.addEventListener('click', (e) => { const t = e.target.closest('.pvt'); if (t) go(+t.dataset.i); });
+pv.addEventListener('click', (e) => { const b = e.target.closest('[data-note]'); if (b) noteOn(+b.dataset.note); });
+const present = $('#pvpresent');
+if (!document.fullscreenEnabled) present.style.display = 'none';
+present.onclick = () => stage.requestFullscreen().then(() => stage.focus()).catch(() => {});
+const KEYS = { ArrowRight: 1, PageDown: 1, ' ': 1, ArrowLeft: -1, PageUp: -1 };
+document.addEventListener('keydown', (e) => {
+  const d = KEYS[e.key];
+  if (!d || !V.doc || V.kind !== 'slides' || pv.hidden || panel.dataset.state !== 'done' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest?.('input, textarea, select, [contenteditable], dialog') || (e.key === ' ' && e.target.closest?.('button, a'))) return;
+  const r = stage.getBoundingClientRect();
+  if (!document.fullscreenElement && (r.bottom < 60 || r.top > innerHeight - 60)) return; // the deck is scrolled away: let the page scroll
+  e.preventDefault(); go(V.cur + (e.key === ' ' && e.shiftKey ? -1 : d));
+});
+let swipe = null;
+stage.addEventListener('touchstart', (e) => { swipe = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
+stage.addEventListener('touchend', (e) => {
+  if (!swipe || V.kind !== 'slides') return;
+  const t = e.changedTouches[0], dx = t.clientX - swipe[0], dy = t.clientY - swipe[1]; swipe = null;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) go(V.cur + (dx < 0 ? 1 : -1));
+}, { passive: true });
+
 // revision drawer
 const rev = $('#rev'), pgs = $('#pgs');
 const toggleRev = (open = rev.hidden) => { rev.hidden = !open; $('#revopen').setAttribute('aria-expanded', open); if (open) $('#revgen').focus(); };
@@ -773,9 +992,19 @@ function addPage(n = '') {
   row.querySelector('button').onclick = () => row.remove();
   pgs.insertBefore(row, $('#addpg'));
   row.querySelector(n ? '.pn' : 'input').focus();
+  markNotes();
 }
-$('#addpg').onclick = () => { const ns = [...pgs.querySelectorAll('input[type=number]')].map((i) => +i.value || 0); addPage(ns.length ? Math.max(...ns) + 1 : ''); };
-const revHint = (msg) => { $('#reverr').textContent = msg || "Claude edits the existing LaTeX. It won't add facts your files don't have."; $('#reverr').classList.toggle('err', !!msg); };
+$('#addpg').onclick = () => { const ns = [...pgs.querySelectorAll('input[type=number]')].map((i) => +i.value || 0); addPage(ns.length ? Math.max(...ns) + 1 : V.doc ? V.cur + 1 : ''); };
+// "Note on this page" from the viewer: open the drawer and focus that page's row, adding it if needed
+function noteOn(n) {
+  toggleRev(true);
+  const row = [...pgs.querySelectorAll('.pg')].find((r) => +r.querySelector('input').value === n);
+  if (row) { row.querySelector('.pn').focus(); row.animate?.([{ boxShadow: '0 0 0 3px rgba(229,72,30,.35)' }, { boxShadow: '0 0 0 3px rgba(229,72,30,0)' }], { duration: 600 }); }
+  else addPage(n);
+}
+pgs.addEventListener('input', () => markNotes());
+pgs.addEventListener('click', () => markNotes()); // after a row's × removed it
+const revHint = (msg) => { $('#reverr').textContent = msg || "The agent edits the existing LaTeX. It won't add facts your files don't have."; $('#reverr').classList.toggle('err', !!msg); };
 rev.addEventListener('submit', async (e) => {
   e.preventDefault(); revHint();
   const rows = [...pgs.querySelectorAll('.pg')].filter((r) => r.querySelector('.pn').value.trim());
@@ -790,7 +1019,7 @@ rev.addEventListener('submit', async (e) => {
   catch { r = { ok: false }; j.error = 'Could not reach the server. Is node server.js running?'; }
   $('#revgo').disabled = false;
   if (!r.ok) return revHint(j.error || `Revision failed (${r.status})`);
-  $('#revgen').value = ''; pgs.querySelectorAll('.pg').forEach((p) => p.remove()); toggleRev(false); $('#back').hidden = true;
+  $('#revgen').value = ''; pgs.querySelectorAll('.pg').forEach((p) => p.remove()); markNotes(); toggleRev(false); $('#back').hidden = true;
   feed.innerHTML = ''; t0 = Date.now(); tick = setInterval(() => { $('#clock').textContent = mmss(Date.now() - t0); }, 500);
   setState('running', `Revising to v${j.version}`);
   listen(jobId);
@@ -821,7 +1050,7 @@ function fail(msg) {
   addStep('failed', msg);
   setState('failed', 'Failed');
 }
-const reset = () => { es?.close(); toggleRev(false); ask.hidden = true; $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; $('#pdf').removeAttribute('src'); form.scrollIntoView({ behavior: 'smooth' }); };
+const reset = () => { es?.close(); toggleRev(false); ask.hidden = true; $('#back').hidden = true; history.replaceState(null, '', location.pathname); setState('idle', 'Waiting for input'); $('#jobid').textContent = ''; clearPdf(); form.scrollIntoView({ behavior: 'smooth' }); };
 $('#retry').onclick = reset;
 $('#again').onclick = reset;
 // reattach after a reload: #job=<id>
