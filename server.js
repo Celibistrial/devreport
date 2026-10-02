@@ -13,7 +13,7 @@ const JOBS = path.join(ROOT, 'jobs');
 const PORT = +process.env.PORT || 3000;
 const MAX_UPLOAD = 50 * 1024 * 1024;
 const MAX_UNZIPPED = 200 * 1024 * 1024;
-const CLAUDE_TIMEOUT = 10 * 60 * 1000;
+const CLAUDE_TIMEOUT = (+process.env.DEVREPORT_TIMEOUT_MIN || 10) * 60 * 1000; // slow local models may need more
 const ID_RE = /^[0-9a-f]{8}$/;
 const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
 // cli: Claude Code headless (`claude -p`). ai: agent.js, our AI SDK loop with four sandboxed tools (model from DEVREPORT_MODEL)
@@ -170,7 +170,7 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
     const child = ENGINE === 'ai'
       ? spawn(process.execPath, [path.join(ROOT, 'agent.js'), ...resume, '-p', prompt], { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] })
       : spawn('claude', [...resume, '-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', tools], { cwd: jobDir, stdio: ['ignore', 'pipe', 'pipe'] });
-    const timer = setTimeout(() => { step(id, 'error', 'Timed out after 10 minutes'); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
+    const timer = setTimeout(() => { step(id, 'error', `Timed out after ${CLAUDE_TIMEOUT / 60000} minutes`); child.kill('SIGTERM'); }, CLAUDE_TIMEOUT);
     const pending = new Map(); // tool_use_id -> icon, to phrase errors
     let buf = '', stderr = '', resultText = '', cost, note = '', sessionId;
     // the latest assistant text is held until the next step, so the last one (the summary) can be shown in full
