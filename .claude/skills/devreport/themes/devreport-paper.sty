@@ -70,6 +70,7 @@
   },
   every axis plot/.append style={line width=1.1pt, mark size=1.6pt},
   drbar/.style={ybar, cycle list name=devreportbar, bar width=12pt, every axis plot/.append style={fill opacity=0.9, draw=none}},
+  drstrip/.style={height=3cm, width=\linewidth, ytick=\empty, ymajorgrids=false},
   drhbar/.style={xbar, cycle list name=devreportbar, scale only axis, width=0.6\linewidth, bar width=9pt, xmajorgrids, ymajorgrids=false, axis y line*=none, ytick style={draw=none}, enlarge x limits={upper,value=0.1}, yticklabel style={font=\ttfamily\drCaption}, every axis plot/.append style={draw=none}},
 }
 \newcommand{\drPieColors}{drAccent,drAccentB,drAccentC,drAccentD,drAccentE,drMuted,drGrid}
@@ -125,18 +126,19 @@
     \vskip1.2em\hskip0.2em{\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par
     \hskip0.2em{\color{drAccent}\rule{2.2em}{1.2pt}}\vskip0.2em}
   \setbeamertemplate{footline}{%
-    \hskip1.2em{\sffamily\drCaption\color{drMuted}\MakeUppercase{\insertshorttitle}}\hfill
-    {\drNumFont\drCaption\color{drAccent}\insertframenumber}\hskip1.2em\vskip0.9em}
+    \leavevmode\hbox to \paperwidth{\hskip1.2em{\sffamily\drCaption\color{drMuted}\MakeUppercase{\insertshorttitle}}\hfill
+    {\drNumFont\drCaption\color{drAccent}\insertframenumber}\hskip1.2em}\vskip0.9em}
   \setbeamertemplate{title page}{%
-    \vfill
+    \vspace*{\fill}% frames are top-aligned (devreport-layout), so a plain \vfill here would be dropped
     {\sffamily\drCaption\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.6em
     {\usebeamerfont{title}\drTitle\itshape\color{drInk}\inserttitle}\par\vskip0.4em
     {\color{drAccent}\rule{3em}{1.5pt}}\par\vskip0.8em
     \ifx\insertsubtitle\@empty\else{\drLead\color{drMuted}\insertsubtitle}\par\vskip0.8em\fi
     {\sffamily\drSmall\color{drInk}\insertauthor}\par
     {\sffamily\drSmall\color{drMuted}\insertdate}\par
-    \vfill}
-  \pgfplotsset{every axis/.append style={width=0.9\linewidth, height=0.66\textheight}}
+    }% beamer adds the bottom \vfill of a top-aligned frame, so this centres the block
+  \RequirePackage{../../.claude/skills/devreport/themes/devreport-layout}% frame layout macros, chart size
+  \renewcommand{\drChartH}{0.68\textheight}% the frame title sits in the text area here
 }{%
   % ================= ARTICLE =================
   \RequirePackage[a4paper,margin=2.6cm,top=2.4cm,bottom=2.8cm]{geometry}
@@ -145,9 +147,10 @@
   \RequirePackage{caption}\DeclareCaptionFont{drcap}{\drCaption}
   \captionsetup{font={drcap,it},labelfont={sf,bf,color=drAccent,up},labelsep=quad,skip=6pt}
   \RequirePackage{titlesec}
-  \titleformat{\section}{\drH\itshape\color{drInk}}{\llap{\drNumFont\color{drAccent}\upshape\thesection\hskip0.8em}}{0pt}{}[\vskip-0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}]
+  \RequirePackage{needspace}% a section heading never sits alone at the foot of a page
+  \titleformat{\section}{\needspace{5\baselineskip}\drH\itshape\color{drInk}}{\llap{\drNumFont\color{drAccent}\upshape\thesection\hskip0.8em}}{0pt}{}[\vskip-0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}]
   \titleformat{\subsection}{\sffamily\drSub\bfseries\color{drAccentB}}{\thesubsection}{0.8em}{\MakeUppercase}
-  \titlespacing*{\section}{0pt}{2.2em}{0.9em}
+  \titlespacing*{\section}{0pt}{1.8em}{0.9em}
   \titlespacing*{\subsection}{0pt}{1.4em}{0.4em}
   \RequirePackage{enumitem}
   \setlist[itemize]{label={\color{drAccent}\raisebox{0.2ex}{\tiny$\blacksquare$}},leftmargin=1.4em,itemsep=2pt}
@@ -165,13 +168,17 @@
   \gdef\@subtitle{}
   \renewcommand{\maketitle}{%
     \thispagestyle{plain}\begingroup\setlength{\parindent}{0pt}
-    \vspace*{1.5em}
+    \vspace*{0.5em}
     {\sffamily\drCaption\color{drAccent}\MakeUppercase{Project report}}\par\vskip0.8em
     {\drTitle\itshape\color{drInk}\@title\par}\vskip0.6em
     {\color{drAccent}\rule{3.5em}{1.6pt}}\par\vskip0.8em
     \ifx\@subtitle\@empty\else{\drLead\color{drMuted}\@subtitle\par}\vskip0.6em\fi
     {\sffamily\drSmall\color{drInk}\@author}\hfill{\sffamily\drSmall\color{drMuted}\@date}\par
-    \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\endgroup\vskip1.6em}
+    \vskip0.4em{\color{drGrid}\rule{\linewidth}{0.5pt}}\par\endgroup\vskip1.2em}
+  % floats: let figures share pages with text, and stack float-only pages from the top instead of spreading them out
+  \renewcommand{\topfraction}{0.85}\renewcommand{\bottomfraction}{0.6}\renewcommand{\textfraction}{0.12}\renewcommand{\floatpagefraction}{0.75}
+  \setlength{\@fptop}{0pt}\setlength{\@fpsep}{1.6em}\setlength{\@fpbot}{0pt plus 1fil}
+  \setlength{\textfloatsep}{1.4em plus 0.4em minus 0.4em}\setlength{\intextsep}{1.2em plus 0.4em minus 0.4em}
   \RequirePackage{hyperref}
   \hypersetup{colorlinks,linkcolor=drAccent,urlcolor=drAccentB,citecolor=drAccent,pdfborder={0 0 0}}
 }
