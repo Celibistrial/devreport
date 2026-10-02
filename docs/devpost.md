@@ -111,7 +111,7 @@ Smaller open models stopped early, repeated the same call, or got stuck on compi
 
 Every chart and stat comes from computed data, and the agent turns down requests it can't support, like "add revenue numbers". The [sample report](https://github.com/Celibistrial/devreport/blob/main/samples/report.pdf) is devreport writing about itself from numbers I measured: compile time per theme, build times across 24 test runs, and slide fill.
 
-It's cheap to run. With DeepSeek v4.1 Flash on OpenRouter a deck costs me about $0.06 to $0.17, and a revision costs under a cent. A local model through Ollama costs nothing.
+It's cheap to run. With DeepSeek v4.1 Flash on OpenRouter a deck costs about $0.04 to $0.10, and a revision costs under a cent. A local model through Ollama costs nothing.
 
 Theme switching is fast because it never calls the model: a warm recompile takes 1.2 to 1.3 seconds, and themes you've already used are cached. You can comment on a single slide, and revisions run in the background while the deck stays on screen. The same pipeline runs on a Claude Code login or on any API key. All 18 tests pass in under a second.
 
