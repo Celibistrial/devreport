@@ -1,0 +1,7 @@
+
+New material: the user added more information after this version was built. It is in input/added-{{n}}/, and revisions/r{{n}}.md lists every file there (notes.md, if present, holds their free-text notes; uploads, unzipped folders and a cloned repo/ sit beside it), and the server re-ran collect.js, so facts.json and data/ now include it. Image ids and data/*.csv names that main.tex already uses are unchanged; new images and tables got new names.
+- Read the listed notes, documents and data files (code via the paths in facts.json's code entries) and see what facts.json gained: charts, notes, milestones, images and code entries whose paths are under input/added-{{n}}/, or that main.tex doesn't use yet.
+- Fold the new information into the sections where it belongs (a new result next to the old results, a new milestone on the timeline, a new screenshot where that feature is shown), not as an appendix. Update earlier claims the new material changes, e.g. which run is best. A new chart comes only from a CSV in data/ via the charts.md snippets.
+- The target length is {{length}}. Keep exactly that many unless the user's notes in revisions/r{{n}}.md ask for more: to make room, replace or merge the weakest existing content rather than adding frames/pages.
+- If the material answers questions you raised before (input/answers.md or an earlier questions.json), use it.
+- In your final message, say what you added and where (by page), and anything in the new material you left out and why.

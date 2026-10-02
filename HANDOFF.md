@@ -211,9 +211,11 @@ job.json        {"id","kind":"report"|"slides","theme":"paper"|"midnight"|"metro
                  "sessionId"?, "asked"?:true, "askCost"?, "revisions"?}
 questions.json  written by Claude only when it must ask: {"questions":[{"id":"q1","question","why"}]} (≤ 3), deleted once answered
 template/       pptx.js output when a .pptx was uploaded (slides only): template.json, media/, thumbnail.jpeg
-input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md ("## <question>\n\n<answer>" sections, written by the answers endpoint)
+input/          uploaded files, unzipped zips, input/repo/ for a cloned GitHub repo, input/answers.md ("## <question>\n\n<answer>" sections, written by the answers endpoint),
+                input/added-N/ material added with revision N (uploads, unzipped zips, repo/, notes.md)
 data/*.csv      written by collect.js
-images/         images copied by collect.js as img1.png, img2.jpg, ...
+images/         images copied by collect.js as img1.png, img2.jpg, ... Re-collecting keeps the ids an existing facts.json gave (by original path)
+                and numbers new ones after the max; input/added-N/ files are processed last, so table_<slug>.csv names stay put too
 facts.json      written by collect.js
 main.tex/.pdf   written by Claude; main.tex loads its theme only via \input{theme.tex}
 theme.tex       written by the server (at job creation and on a switch): one \usepackage line for the theme
@@ -264,3 +266,5 @@ claude --resume <sessionId> -p "<answered|skipped line>" ...   # after questions
 Theme files live in `.claude/skills/devreport/themes/devreport-<theme>.sty`, loaded by relative path from theme.tex. paper/midnight do article + beamer; the slides-only adapters load their Beamer theme and `devreport-core.sty` (the shared `dr*` interface: colours, `\drkpi`, `\drpie`, `\drsafecats`, `drbar`/`drhbar`, and the type scale `\drTitle \drLead \drH \drSub \drBody \drSmall \drCaption \drStat`). moloch and focus aren't in the tectonic bundle, so they are vendored in `themes/vendor/` with their licenses (CC BY-SA 4.0, GPL-3.0); metropolis, trigon and Madrid come from the bundle. `themes/previews/` holds, per theme, `<theme>.png` (400 px thumb of page 1) and `<theme>-1..4.jpg` (1000 px pages for the hover preview), plus `<theme>-report.png` / `-report-1..2.jpg` (800 px) for paper and midnight. They come from the fixed sample in `themes/sample/` (main.tex, report.tex, data/*.csv); regenerate with `sh scripts/previews.sh [theme ...]` (tectonic + pdftoppm). `GET /previews/<theme>[-report](.png|-N.jpg)` serves them.
 
 `POST /api/jobs/:id/theme {theme}`: 409 unless the job is `done` and not being revised/switched; 400 if the theme is unknown, slides-only on a report, or `custom` without a template. Writes theme.tex, swaps in `themes/<theme>.pdf` or runs `tectonic main.tex` (60 s timeout), updates job.json; returns `{theme, pdf (cache-busted), ms, cached}`. On a failed compile it restores theme.tex and main.pdf and returns 422 with the first error line. An older main.tex with a hard-coded theme line is rewritten to `\input{theme.tex}` on its first switch.
+
+`POST /api/jobs/:id/revise`: JSON `{general, pages:[{page, note}]}`, or multipart/form-data to also add material: `general` (text), `pages` (JSON string of the same array), `notes` (≤ 20000 chars), `repoUrl` (public GitHub), any number of files (zips are unpacked like uploads). At least one of these; 409 while anything runs or if there's no finished PDF; 413 over 64 KB (JSON) / 50 MB (multipart). Returns 202 `{revision, version}`; progress on the job's SSE stream. Material goes to `input/added-N/` (notes as notes.md under "## Added after the first draft"), collect.js re-runs, the theme cache is dropped and the agent gets revise.txt + revise-added.txt. On failure main.tex/.pdf, facts.json are restored and added-N/ removed.

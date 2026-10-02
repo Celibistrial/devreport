@@ -18,7 +18,7 @@ const ID_RE = /^[0-9a-f]{8}$/;
 const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
 const DEFAULT_PROMPT = 'Follow the devreport skill. Build a {{kind}} with the {{theme}} theme from the inputs in this folder (facts.json, data/, images/, input/). Write main.tex and compile it to main.pdf with tectonic, fixing errors until it compiles.';
 
-const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_PAGE_NOTES = 30, MAX_ANSWER = 2000;
+const MAX_GENERAL = 4000, MAX_NOTE = 1000, MAX_ADDED_NOTES = 20000, MAX_PAGE_NOTES = 30, MAX_ANSWER = 2000;
 const LENGTH = { slides: [5, 25, 10], report: [2, 10, 4] }; // min, max, default
 const RESUME = {
   answered: 'The user answered your questions: read input/answers.md and continue building; do not ask again.',
@@ -155,8 +155,8 @@ function runClaude(id, jobDir, vars, file = 'prompt.txt', opts = {}) {
     if (file !== 'prompt.txt') return Promise.reject(new Error(`${file} is missing`));
     step(id, 'think', 'No prompt.txt found, using the default prompt');
   }
-  for (const [k, v] of Object.entries(vars)) prompt = prompt.replaceAll(`{{${k}}}`, v);
   if (opts.append) prompt += '\n' + opts.append;
+  for (const [k, v] of Object.entries(vars)) prompt = prompt.replaceAll(`{{${k}}}`, v);
   if (opts.resume) prompt = opts.prompt;
 
   return new Promise((resolve, reject) => {
@@ -293,38 +293,42 @@ async function build(id, jobDir, j, resumeLine) {
   emit(id, 'done', { ...doneData(id, j), cost: cost + (j.askCost || 0) || cost });
 }
 
+// unzip, clone into inputDir/repo, drop symlinks, run collect.js; returns facts.json (or null if unreadable)
+async function intake(id, jobDir, inputDir, { zips, repoUrl }, collectLine) {
+  for (const z of zips) {
+    step(id, 'zip', `Unpacking ${z}`);
+    const dir = await unzipInto(path.join(inputDir, z), inputDir);
+    step(id, 'zip', `Unpacked into ${path.relative(jobDir, path.join(inputDir, dir))}/`);
+  }
+  if (repoUrl) {
+    step(id, 'clone', `Cloning ${repoUrl.replace('https://github.com/', '')}`);
+    try {
+      await run('git', ['clone', '--single-branch', '--', repoUrl, path.join(inputDir, 'repo')], {
+        timeout: 60000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
+      });
+    } catch (e) {
+      throw new Error(e.killed ? 'Clone timed out after 60 s' : 'Clone failed: is the repo public and spelled right?');
+    }
+    step(id, 'clone', 'Repository cloned');
+  }
+  await run('find', [inputDir, '-type', 'l', '-delete']); // no symlinks out of the job folder
+
+  const collect = path.join(ROOT, 'collect.js');
+  if (!fs.existsSync(collect)) throw new Error('collect.js is missing, so there is no data to chart');
+  step(id, 'collect', collectLine);
+  try { await run(process.execPath, [collect, jobDir], { timeout: 120000, maxBuffer: 16 * 1024 * 1024 }); }
+  catch (e) { throw new Error('collect.js failed: ' + String(e.stderr || e.message).trim().split('\n').pop()); }
+  return JSON.parse(await fsp.readFile(path.join(jobDir, 'facts.json'), 'utf8').catch(() => 'null'));
+}
+
 function pipeline(id, jobDir, { zips, repoUrl, template }, j) {
-  const inputDir = path.join(jobDir, 'input');
   return guarded(id, jobDir, async () => {
     await setStatus(jobDir, 'running');
-    for (const z of zips) {
-      step(id, 'zip', `Unpacking ${z}`);
-      const dir = await unzipInto(path.join(inputDir, z), inputDir);
-      step(id, 'zip', `Unpacked into input/${dir}/`);
-    }
-    if (repoUrl) {
-      step(id, 'clone', `Cloning ${repoUrl.replace('https://github.com/', '')}`);
-      try {
-        await run('git', ['clone', '--single-branch', '--', repoUrl, path.join(inputDir, 'repo')], {
-          timeout: 60000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
-        });
-      } catch (e) {
-        throw new Error(e.killed ? 'Clone timed out after 60 s' : 'Clone failed: is the repo public and spelled right?');
-      }
-      step(id, 'clone', 'Repository cloned');
-    }
-    await run('find', [inputDir, '-type', 'l', '-delete']); // no symlinks out of the job folder
-
-    const collect = path.join(ROOT, 'collect.js');
-    if (!fs.existsSync(collect)) throw new Error('collect.js is missing, so there is no data to chart');
-    step(id, 'collect', 'Crunching commits, logs and notes into CSVs');
-    try { await run(process.execPath, [collect, jobDir], { timeout: 120000, maxBuffer: 16 * 1024 * 1024 }); }
-    catch (e) { throw new Error('collect.js failed: ' + String(e.stderr || e.message).trim().split('\n').pop()); }
-    try {
-      const facts = JSON.parse(await fsp.readFile(path.join(jobDir, 'facts.json'), 'utf8'));
+    const facts = await intake(id, jobDir, path.join(jobDir, 'input'), { zips, repoUrl }, 'Crunching commits, logs and notes into CSVs');
+    if (facts) {
       const n = facts.charts?.length || 0, r = facts.repo;
       step(id, 'collect', `Found ${r ? r.commits + ' commits, ' : ''}${n} chart${n === 1 ? '' : 's'} worth of data`);
-    } catch { /* facts summary is cosmetic */ }
+    }
 
     if (template) {
       step(id, 'template', `Reading your template ${template}`);
@@ -366,8 +370,8 @@ async function answerJob(req, res, id) {
 }
 
 // ---------- revisions ----------
-// {general, pages:[{page, note}]} -> trimmed copy; throws on anything malformed
-function parseRevision(buf) {
+// {general, pages:[{page, note}]} -> trimmed copy; throws on anything malformed. hasMaterial: added files/notes/repo count as a change
+function parseRevision(buf, hasMaterial = false) {
   let b; try { b = JSON.parse(buf); } catch { throw new Error('Body must be JSON'); }
   if (!b || typeof b !== 'object' || Array.isArray(b)) throw new Error('Body must be a JSON object');
   const general = b.general ?? '', list = b.pages ?? [];
@@ -381,13 +385,18 @@ function parseRevision(buf) {
     if (p.note.length > MAX_NOTE) throw new Error(`A page note is over ${MAX_NOTE} characters`);
     return { page: p.page, note: p.note.trim() };
   }).filter((p) => p.note).sort((a, b) => a.page - b.page);
-  if (!general.trim() && !pages.length) throw new Error('Say what should change');
+  if (!general.trim() && !pages.length && !hasMaterial) throw new Error('Say what should change, or add notes, files or a GitHub link');
   return { general: general.trim(), pages };
 }
 
-async function revise(id, jobDir, n, j, { general, pages }) {
+const plural = (k, word) => `${k === 1 ? (/^[aeiou]/.test(word) ? 'an' : 'a') : k} ${word}${k === 1 ? '' : 's'}`;
+
+// added = {notes, files:[{filename, data}], repoUrl} | null: new material for input/added-<n>/, re-collected before the run
+async function revise(id, jobDir, n, j, { general, pages }, added) {
   const rev = path.join(jobDir, 'revisions'), tex = path.join(jobDir, 'main.tex'), pdf = path.join(jobDir, 'main.pdf');
   const backTex = path.join(rev, `v${n}.tex`), backPdf = path.join(rev, `v${n}.pdf`);
+  const addDir = path.join(jobDir, 'input', `added-${n}`), factsFile = path.join(jobDir, 'facts.json');
+  const oldFacts = added && await fsp.readFile(factsFile, 'utf8').catch(() => null);
   try {
     await setStatus(jobDir, 'running');
     await fsp.mkdir(rev, { recursive: true });
@@ -395,11 +404,36 @@ async function revise(id, jobDir, n, j, { general, pages }) {
     await fsp.copyFile(pdf, backPdf);
     const what = j.kind === 'slides' ? 'deck' : 'report';
     await fsp.writeFile(path.join(rev, `r${n}.md`), `# Revision ${n}\n\n`
-      + (general ? `## Whole ${what}\n\n${general}\n\n` : '') + pages.map((p) => `## Page ${p.page}\n\n${p.note}\n\n`).join(''));
-    const asked = [general && `the whole ${what}`, pages.length && `page${pages.length === 1 ? '' : 's'} ${pages.map((p) => p.page).join(', ')}`].filter(Boolean).join(' and ');
-    step(id, 'revise', `Revision ${n}: notes on ${asked}. Saved v${n} as a backup`);
+      + (general ? `## Whole ${what}\n\n${general}\n\n` : '') + pages.map((p) => `## Page ${p.page}\n\n${p.note}\n\n`).join('')
+      + (added ? `## New material\n\nThe user added material in input/added-${n}/: fold it into the ${what}.\n` : ''));
+    const asked = [general && `notes on the whole ${what}`, pages.length && `notes on page${pages.length === 1 ? '' : 's'} ${pages.map((p) => p.page).join(', ')}`, added && 'new material'].filter(Boolean).join(' and ');
+    step(id, 'revise', `Revision ${n}: ${asked}. Saved v${n} as a backup`);
+    let append;
+    if (added) {
+      await fsp.rm(addDir, { recursive: true, force: true }); // left over from a failed attempt at this revision
+      await fsp.mkdir(addDir, { recursive: true });
+      const taken = new Set(['notes.md']), zips = [];
+      for (const f of added.files) {
+        const name = safeName(f.filename, taken);
+        await fsp.writeFile(path.join(addDir, name), f.data);
+        if (/\.zip$/i.test(name)) zips.push(name);
+      }
+      if (added.notes) await fsp.writeFile(path.join(addDir, 'notes.md'), `## Added after ${n === 1 ? 'the first draft' : `version ${n}`}\n\n${added.notes}\n`);
+      const k = added.files.length;
+      step(id, 'upload', 'Received ' + [k && plural(k, 'file'), added.notes && 'a note', added.repoUrl && 'a GitHub link'].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1'));
+      const before = JSON.parse(oldFacts || '{}');
+      const facts = await intake(id, jobDir, addDir, { zips, repoUrl: added.repoUrl }, 'Re-counting with the new material') || {};
+      const list = (await fsp.readdir(addDir, { recursive: true, withFileTypes: true }))
+        .filter((e) => e.isFile() && !/(^|\/)\.git(\/|$)/.test(e.parentPath)).map((e) => path.relative(jobDir, path.join(e.parentPath, e.name)));
+      await fsp.appendFile(path.join(rev, `r${n}.md`), `\nFiles (${list.length}${list.length > 100 ? ', first 100 shown' : ''}):\n${list.slice(0, 100).map((f) => `- ${f}`).join('\n')}\n`);
+      const diff = [['charts', 'chart'], ['images', 'image'], ['notes', 'note']]
+        .map(([key, word]) => [(facts[key]?.length || 0) - (before[key]?.length || 0), word]).filter(([d]) => d > 0).map(([d, word]) => `+${plural(d, word).replace(/^an? /, '1 ')}`);
+      step(id, 'collect', diff.length ? `Re-counted with the new material: ${diff.join(', ')}` : 'Re-counted: nothing new to chart, the agent will read the new files');
+      await fsp.rm(path.join(jobDir, 'themes'), { recursive: true, force: true }); // data/ and images/ changed under the cached theme PDFs
+      append = await fsp.readFile(path.join(ROOT, '.claude/skills/devreport/revise-added.txt'), 'utf8');
+    }
     const started = Date.now();
-    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, { n, kind: j.kind, theme: j.theme }, 'revise.txt');
+    const { code, stderr, resultText, cost } = await runClaude(id, jobDir, { n, kind: j.kind, theme: j.theme, length: `${j.length || LENGTH[j.kind][2]} ${unit(j.kind)}` }, 'revise.txt', { append });
     // a changed main.tex with a stale main.pdf means the last compile failed
     const texChanged = (await fsp.readFile(tex, 'utf8')) !== (await fsp.readFile(backTex, 'utf8'));
     const stale = !fs.existsSync(pdf) || (texChanged && (await fsp.stat(pdf)).mtimeMs < started);
@@ -410,6 +444,10 @@ async function revise(id, jobDir, n, j, { general, pages }) {
     // put the last good version back so the job stays usable
     await fsp.copyFile(backTex, tex).catch(() => {});
     await fsp.copyFile(backPdf, pdf).catch(() => {});
+    if (added) { // drop the material too, so facts.json matches the kept version and a retry starts clean
+      await fsp.rm(addDir, { recursive: true, force: true }).catch(() => {});
+      if (oldFacts) await fsp.writeFile(factsFile, oldFacts).catch(() => {});
+    }
     await setStatus(jobDir, 'done').catch(() => {});
     emit(id, 'failed', { error: `${e.message.trim().replace(/\.?$/, '.')} Kept v${n}.`, ...doneData(id, j) });
   } finally {
@@ -423,17 +461,32 @@ async function reviseJob(req, res, id) {
   if (busy || switching.has(id)) return json(res, 409, { error: 'A report is being generated, revised or re-themed. Try again when it finishes.' });
   if (j.status !== 'done' || !fs.existsSync(path.join(jobDir, 'main.pdf')) || !fs.existsSync(path.join(jobDir, 'main.tex')))
     return json(res, 409, { error: 'This job has no finished PDF to revise' });
-  if (+req.headers['content-length'] > 64 * 1024) return json(res, 413, { error: 'Feedback is too long' });
+  // JSON {general, pages}, or multipart with general, pages (JSON string), notes, repoUrl and files to add material
+  const multi = /^multipart\/form-data/i.test(req.headers['content-type'] || '');
+  const [max, tooBig] = multi ? [MAX_UPLOAD, 'Upload is over 50 MB'] : [64 * 1024, 'Feedback is too long'];
+  if (+req.headers['content-length'] > max) return json(res, 413, { error: tooBig });
   busy = id;
-  let feedback;
-  try { feedback = parseRevision(await readBody(req, 64 * 1024, 'Feedback is too long')); }
-  catch (e) { busy = null; return json(res, e.status || 400, { error: e.message }); }
+  let feedback, added = null;
+  try {
+    const buf = await readBody(req, max, tooBig);
+    if (!multi) feedback = parseRevision(buf);
+    else {
+      const { fields, files } = parseMultipart(buf, req.headers['content-type']);
+      let pages = [];
+      if (fields.pages?.trim()) try { pages = JSON.parse(fields.pages); } catch { throw new Error('pages must be a JSON array'); }
+      const notes = (fields.notes || '').trim();
+      if (notes.length > MAX_ADDED_NOTES) throw new Error(`Notes are over ${MAX_ADDED_NOTES} characters`);
+      const repoUrl = normalizeRepoUrl(fields.repoUrl);
+      if (notes || files.length || repoUrl) added = { notes, files, repoUrl };
+      feedback = parseRevision(JSON.stringify({ general: fields.general ?? '', pages }), !!added);
+    }
+  } catch (e) { busy = null; return json(res, e.status || 400, { error: e.message }); }
   const n = (j.revisions || 0) + 1;
   const job = jobs.get(id) || { events: [], clients: new Set() };
   Object.assign(job, { from: job.events.length, finished: false });
   jobs.set(id, job);
   json(res, 202, { revision: n, version: n + 1 });
-  revise(id, jobDir, n, j, feedback);
+  revise(id, jobDir, n, j, feedback, added);
 }
 
 // ---------- instant theme switch: write theme.tex, run tectonic directly (no Claude) ----------
