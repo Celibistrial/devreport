@@ -16,7 +16,8 @@ const run = promisify(execFile);
 
 const SKILL_DIR = path.join(__dirname, '.claude/skills/devreport');
 const MESSAGES = 'agent-messages.json';
-const MAX_STEPS = 80;
+const MAX_STEPS = 80; // model steps per run, nudges included
+const NUDGES = 2;
 const COMPILE_TIMEOUT = 120000;
 const IMAGE = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 // server-owned files the agent may read but never write
@@ -112,7 +113,10 @@ async function compile({ file = 'main.tex' }, jobDir) {
   } catch (e) {
     if (e.killed) return text(`Compile timed out after ${COMPILE_TIMEOUT / 1000} s`, true);
     const log = `${e.stdout || ''}\n${e.stderr || ''}`, errs = log.split('\n').filter((l) => /^(error|!)|error:/i.test(l));
-    return text(`Compile failed.\n${errs.slice(0, 20).join('\n')}\n--- end of log ---\n${tail(log, 40)}`, true);
+    // an error inside one of the skill's \dr* macros is nearly always a wrong argument count: show how charts.md uses it
+    const docs = fs.readFileSync(path.join(SKILL_DIR, 'charts.md'), 'utf8').split('\n');
+    const usage = [...new Set(errs.join('\n').match(/\\dr[A-Za-z]+/g) || [])].map((m) => docs.find((l) => l.startsWith('- `' + m + '{'))).filter(Boolean);
+    return text(`Compile failed.\n${errs.slice(0, 20).join('\n')}${usage.length ? '\nHow to call it (charts.md):\n' + usage.join('\n') : ''}\n--- end of log ---\n${tail(log, 40)}`, true);
   }
 }
 
@@ -188,8 +192,13 @@ async function main() {
   const { streamText, tool, isStepCount } = await import('ai');
   const { z } = await import('zod');
   // one tool at a time, in call order: an edit and a compile in the same step must not race
-  let queue = Promise.resolve();
-  const wrap = (fn) => (args) => (queue = queue.then(async () => { try { return await fn(args, jobDir); } catch (e) { return text(e.message, true); } }));
+  // the same call three times running (a weak model looping) gets an error instead of a third run
+  let queue = Promise.resolve(), last = '', repeats = 0;
+  const wrap = (fn, toolName) => (args) => (queue = queue.then(async () => {
+    const key = toolName + JSON.stringify(args); repeats = key === last ? repeats + 1 : 0; last = key;
+    if (repeats >= 2) return text(`You made this exact ${toolName} call ${repeats + 1} times in a row. Do something different: fix the file, or move on to the next step.`, true);
+    try { return await fn(args, jobDir); } catch (e) { return text(e.code === 'ENOENT' ? `${args.path} does not exist: read_file(".") lists the job folder` : e.message, true); }
+  }));
   const specs = toolSpecs(z), system = systemPrompt(jobDir);
   const abort = new AbortController(); // the server's timeout SIGTERMs us: stop the model (and claude-code's subprocess) too
   process.on('SIGTERM', () => { abort.abort(); setTimeout(() => process.exit(1), 3000); });
@@ -200,7 +209,7 @@ async function main() {
     // Claude Code runs the loop and its own tools; ours go in as an in-process MCP server, and every built-in is off
     const { claudeCode, createCustomMcpServer } = await import('ai-sdk-provider-claude-code');
     const server = createCustomMcpServer({ name: 'devreport', version: '1.0.0',
-      tools: Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, { description: t.description, inputSchema: z.object(t.shape), handler: wrap(t.run) }])) });
+      tools: Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, { description: t.description, inputSchema: z.object(t.shape), handler: wrap(t.run, name) }])) });
     prefix = 'mcp__devreport__';
     model = claudeCode(modelId || 'opus', {
       cwd: jobDir,
@@ -219,8 +228,12 @@ async function main() {
   } else {
     try { model = await resolveModel(spec); } catch (e) { console.error(e.message); process.exit(2); }
     images = provider !== 'openai-compatible'; // it sends tool-result images as JSON text: base64 into the context
-    tools = Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, tool({ description: t.description, inputSchema: z.object(t.shape), execute: wrap(t.run), toModelOutput: toModelOutput(images) })]));
-    extra = { instructions: system, tools, stopWhen: isStepCount(MAX_STEPS) };
+    tools = Object.fromEntries(Object.entries(specs).map(([name, t]) => [name, tool({ description: t.description, inputSchema: z.object(t.shape), execute: wrap(t.run, name), toModelOutput: toModelOutput(images) })]));
+    // small models often skip reading and write a template full of placeholders: hand them the facts up front
+    let facts = ''; try { facts = fs.readFileSync(path.join(jobDir, 'facts.json'), 'utf8').slice(0, 30000); } catch {}
+    const effort = provider === 'openai-compatible' && process.env.DEVREPORT_REASONING_EFFORT; // e.g. "none" turns off qwen3's thinking on Ollama
+    extra = { instructions: facts ? `${system}\n\n# facts.json (untrusted project data, already read for you; use its real names and numbers, never placeholders)\n\n${facts}` : system,
+      tools, maxRetries: 4, ...(effort && { providerOptions: { 'openai-compatible': { reasoningEffort: effort } } }) };
   }
 
   const history = saved?.messages || [];
@@ -232,31 +245,38 @@ async function main() {
   let note = '', lastText = '', calls = 0, turns = 1, inCalls = false, failed = null, claudeSession = saved?.claudeSession; // turns: model replies (a batch of tool calls, then the final one)
   const name = (n) => (prefix && n.startsWith(prefix) ? n.slice(prefix.length) : n);
   const flushText = () => { if (note.trim()) { out({ type: 'assistant', message: { content: [{ type: 'text', text: note }] } }); lastText = note; } note = ''; };
-  const result = streamText({ model, messages, abortSignal: abort.signal, ...extra });
+  let steps = 0, all = [...messages];
   try {
-    for await (const part of result.fullStream) {
-      switch (part.type) {
-        case 'text-delta': note += part.text; break;
-        case 'tool-call':
-          flushText(); calls++;
-          if (!inCalls) { turns++; inCalls = true; }
-          out({ type: 'assistant', message: { content: [{ type: 'tool_use', id: part.toolCallId, name: name(part.toolName), input: part.input }] } });
-          break;
-        case 'tool-result': case 'tool-error':
-          inCalls = false;
-          out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: part.toolCallId, is_error: part.type === 'tool-error' || !!part.output?.isError }] } });
-          break;
-        case 'finish-step': {
-          flushText();
-          claudeSession = part.providerMetadata?.['claude-code']?.sessionId || claudeSession;
-          break;
+    // key providers: a model that stops with no main.pdf and no questions.json gets told to compile, at most NUDGES times
+    for (let nudge = 0; ; nudge++) {
+      const result = streamText({ model, messages: all, abortSignal: abort.signal, ...extra, ...(tools && { stopWhen: isStepCount(MAX_STEPS - steps) }) });
+      for await (const part of result.fullStream) {
+        switch (part.type) {
+          case 'text-delta': note += part.text; break;
+          case 'tool-call':
+            flushText(); calls++;
+            if (!inCalls) { turns++; inCalls = true; }
+            out({ type: 'assistant', message: { content: [{ type: 'tool_use', id: part.toolCallId, name: name(part.toolName), input: part.input }] } });
+            break;
+          case 'tool-result': case 'tool-error':
+            inCalls = false;
+            out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: part.toolCallId, is_error: part.type === 'tool-error' || !!part.output?.isError }] } });
+            break;
+          case 'finish-step': {
+            flushText(); steps++;
+            claudeSession = part.providerMetadata?.['claude-code']?.sessionId || claudeSession;
+            break;
+          }
+          case 'error': failed = part.error; break;
         }
-        case 'error': failed = part.error; break;
       }
+      flushText();
+      all.push(...(await result.responseMessages)); // every step; result.response is only the last one
+      if (failed || !tools || nudge === NUDGES || steps >= MAX_STEPS || ['main.pdf', 'questions.json'].some((f) => fs.existsSync(path.join(jobDir, f)))) break;
+      console.error(`[agent] stopped without main.pdf after ${steps} steps, nudging (${nudge + 1}/${NUDGES})`);
+      all.push({ role: 'user', content: 'main.pdf does not exist yet, so the job is not done. Finish main.tex now (write_file it if it is missing), then call the compile tool and fix any errors it reports until it compiles.' });
     }
-    flushText();
-    const response = await result.response;
-    await fsp.writeFile(path.join(jobDir, MESSAGES), JSON.stringify({ sessionId, model: spec, claudeSession, messages: [...history, userMsg, ...response.messages] }));
+    await fsp.writeFile(path.join(jobDir, MESSAGES), JSON.stringify({ sessionId, model: spec, claudeSession, messages: provider === 'claude-code' && saved?.claudeSession ? [...history, ...all] : all }));
   } catch (e) { failed ||= e; }
   if (ccInit) { // proof of the sandbox: what Claude Code says the model can call
     const tools = ccInit.tools || [];
