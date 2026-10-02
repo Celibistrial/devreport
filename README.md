@@ -152,12 +152,11 @@ DEVREPORT_ENGINE=ai DEVREPORT_MODEL=openai-compatible:qwen3:8b DEVREPORT_BASE_UR
 
 ### What a run costs
 
-Measured on the author's test runs (1 USD taken as ₹88):
+Measured on the author's test runs (billing was in rupees, converted at ₹88 to the dollar):
 
 | Engine | Per deck | Source |
 |---|---|---|
-| Claude Opus 5.5 via Claude Code | $0.43–0.87, mean about ₹52 (8 runs) | `total_cost_usd` in the run logs |
-| DeepSeek v4.1 Flash via OpenRouter | about ₹5–15 | OpenRouter billing; logs reconstruct ₹3–9 |
+| DeepSeek v4.1 Flash via OpenRouter | about $0.06–0.17 | OpenRouter billing; the saved logs reconstruct $0.04–0.10 |
 | qwen3:8b on Ollama | free | runs locally |
 
 A revision costs about a tenth of a build. Each model call re-sends the conversation so far, so a run's cost follows how many calls it makes more than how many slides it has.
