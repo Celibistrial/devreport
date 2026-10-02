@@ -1,0 +1,10 @@
+services:
+  devreport:
+    build: .
+    ports: ["3000:3000"]
+    env_file: .env
+    volumes:
+      - ./jobs:/app/jobs
+      - tectonic-cache:/root/.cache/Tectonic
+volumes:
+  tectonic-cache:

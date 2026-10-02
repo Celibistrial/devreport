@@ -1,0 +1,8 @@
+jobs/
+node_modules/
+.env
+research/
+.git
+.claude/worktrees
+.playwright-mcp
+docs/

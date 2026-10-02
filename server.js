@@ -12,11 +12,12 @@ const ROOT = __dirname;
 try { process.loadEnvFile(path.join(ROOT, '.env')); } catch {} // settings and API keys from .env; real env vars still win
 const JOBS = path.join(ROOT, 'jobs');
 const PORT = +process.env.PORT || 3000;
+const HOST = process.env.HOST || '127.0.0.1'; // 0.0.0.0 in Docker
 const MAX_UPLOAD = 50 * 1024 * 1024;
 const MAX_UNZIPPED = 200 * 1024 * 1024;
 const CLAUDE_TIMEOUT = (+process.env.DEVREPORT_TIMEOUT_MIN || 10) * 60 * 1000; // slow local models may need more
 const ID_RE = /^[0-9a-f]{8}$/;
-const DEFAULT_TOOLS = 'Read,Write,Edit,Bash(tectonic:*),Skill';
+const DEFAULT_TOOLS = 'Read,Write(./**),Edit(./**),Bash(tectonic:*),Skill'; // also used by revise-added.txt, which has no ALLOWED_TOOLS line
 // cli: Claude Code headless (`claude -p`). ai: agent.js, our AI SDK loop with four sandboxed tools (model from DEVREPORT_MODEL)
 const ENGINE = process.env.DEVREPORT_ENGINE === 'ai' ? 'ai' : 'cli';
 const DEFAULT_PROMPT = 'Follow the devreport skill. Build a {{kind}} with the {{theme}} theme from the inputs in this folder (facts.json, data/, images/, input/). Write main.tex and compile it to main.pdf with tectonic, fixing errors until it compiles.';
@@ -666,5 +667,5 @@ const server = http.createServer((req, res) => {
   json(res, 404, { error: 'Not found' });
 });
 
-if (require.main === module) server.listen(PORT, '127.0.0.1', () => console.log(`devreport on http://127.0.0.1:${PORT} (${ENGINE} engine${ENGINE === 'ai' ? `, ${process.env.DEVREPORT_MODEL || 'claude-code:opus'}` : ''})`));
+if (require.main === module) server.listen(PORT, HOST, () => console.log(`devreport on http://${HOST}:${PORT} (${ENGINE} engine${ENGINE === 'ai' ? `, ${process.env.DEVREPORT_MODEL || 'claude-code:opus'}` : ''})`));
 module.exports = { parseMultipart, normalizeRepoUrl, describeTool, parseRevision, parseLength, parseQuestions, parseAnswers, THEMES, themeError, themeTex, useThemeTex };

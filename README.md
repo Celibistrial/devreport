@@ -89,6 +89,15 @@ node server.js                 # http://127.0.0.1:3000  (PORT=3002 node server.j
 
 A run takes about 1–3 minutes with a strong model and runs on **your own** credentials: a Claude Code login, or an API key for any supported provider (OpenRouter, OpenAI, Anthropic, Google, or any OpenAI-compatible server such as Groq, DeepSeek or a local Ollama). Settings and keys live in `.env` (gitignored; see `.env.example`), and real environment variables override it. See [Engines](#engines). There is no public hosted version on purpose, since it would run strangers' jobs on one person's account.
 
+### Docker
+
+```bash
+cp .env.example .env           # set DEVREPORT_ENGINE=ai, DEVREPORT_MODEL and that provider's key
+docker compose up --build      # first build ~9 min (it pre-downloads the TeX packages); jobs land in ./jobs
+```
+
+Then open http://localhost:3000. The image includes tectonic, git and poppler, and uses the `ai` engine with an API key. The `cli` / `claude-code:` engine needs a Claude Code login, so run it on the host instead (mounting `~/.claude` into the container could work, but isn't set up). For Ollama on the host, set `DEVREPORT_BASE_URL=http://host.docker.internal:11434/v1`.
+
 ## Engines
 
 `DEVREPORT_ENGINE` picks who runs the agent (default `cli`):
