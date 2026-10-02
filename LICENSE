@@ -1,0 +1,12 @@
+Copyright (c) 2026 Gaurav (github.com/Celibistrial). All rights reserved.
+
+The source code in this repository is published for viewing and for judging
+in the FirstCommit hackathon. No license is granted to use, copy, modify,
+distribute or create derivative works of it without written permission from
+the copyright holder.
+
+Third-party components keep their own licenses and are not covered by this
+notice:
+  - .claude/skills/humanizer/                         MIT (see its LICENSE)
+  - .claude/skills/devreport/themes/vendor/moloch/    CC BY-SA 4.0 (see its LICENSE)
+  - .claude/skills/devreport/themes/vendor/focus/     GPL-3.0 (see its LICENSE.md)

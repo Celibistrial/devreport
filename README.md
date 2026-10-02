@@ -76,3 +76,7 @@ No `npm install`: the server is Node's standard library only. Each run uses **yo
 ## AI disclosure
 
 Built with Claude Code as a pair programmer, and Claude Code (headless) is the runtime that writes each report. The collector, intake, server and UI are ordinary code you can read and test.
+
+## License
+
+© 2026 Gaurav. All rights reserved; see [LICENSE](LICENSE). Source is public for hackathon judging. Third-party themes and skills keep their own licenses (listed above).
