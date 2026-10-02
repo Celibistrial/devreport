@@ -55,11 +55,9 @@
   {\drSmall\drKpiLabel{#2}\par}%
   \if\relax\detokenize{#3}\relax\else\vskip16pt plus1fil{\drBody\color{drInk}#3\par}\fi\vskip0pt plus.5fil}\par}
 
-% \drCallout{text}: a panel with an accent bar down its left edge
-\newcommand{\drCallout}[1]{\par\noindent\begin{tikzpicture}
-  \pgfmathsetlengthmacro\drCW{\linewidth-30pt}%
-  \node[fill=drPanel, text=drInk, font=\drBody, inner xsep=15pt, inner ysep=12pt, text width=\drCW, align=left] (c) {#1};
-  \fill[drAccent] (c.north west) rectangle ([xshift=4pt]c.south west);\end{tikzpicture}\par\vskip0.6em}
+% \drCallout{text}: kept for old main.tex files only. No box or panel (the owner hates them):
+% it renders as a plain ragged-right takeaway line in the accent colour.
+\newcommand{\drCallout}[1]{\par\noindent{\raggedright\drBody\color{drAccent}#1\par}\vskip0.6em}
 
 % \drFlow{Data, Augment, {ResNet, 3 stages}, SGD}[45k/5k split, crop + flip, 0.27M params, step LR]:
 % boxes and arrows across the line (2-5 boxes; brace a label with a comma), and optionally a short caption under each box
