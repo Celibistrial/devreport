@@ -112,12 +112,25 @@
     document.querySelector('#again').addEventListener('click', () => setTimeout(() => { repo.value ||= 'Celibistrial/devreport'; })); // "New deck" clears it
     document.querySelector('.logo .tag').textContent = 'v0.1 · demo';
     document.querySelector('footer span').textContent = 'Static demo: the build replays a prebuilt run. Run it locally to typeset your own repo.';
-    document.querySelector('.bar').insertAdjacentHTML('beforeend', `<div class="demo-note">Demo · prebuilt output · <a href="${YT}" target="_blank" rel="noopener">Watch the video</a> · <a href="${REPO}" target="_blank" rel="noopener">GitHub</a></div>`);
+    const link = (href, t) => `<a href="${href}" target="_blank" rel="noopener">${t}</a>`, tag = '<span class="demotag">demo replay</span>';
+    document.body.insertAdjacentHTML('afterbegin', `<div class="demobar" role="note"><div class="wrap"><b>Demo</b><span>This is a demo. Nothing runs here: the build is a replay and the PDFs were made earlier by devreport. To run it on your own project, clone the repo.</span><span class="dl">${link(YT, 'Watch the video')}${link(REPO, 'Clone on GitHub')}</span></div></div>`);
+    document.querySelector('#pill').insertAdjacentHTML('beforebegin', tag);
+    document.querySelector('#donemsg').insertAdjacentHTML('afterend', tag);
+    document.querySelector('#feed').insertAdjacentHTML('beforebegin', '<p class="demofeed">Demo replay of a recorded build. No agent or LaTeX is running.</p>');
+    // files are never sent: the fake XHR only reads their names for the replay text
+    document.querySelectorAll('.drop p').forEach((p) => p.insertAdjacentHTML('beforeend', '<br><span class="demonote">Demo: nothing is uploaded. Files stay in your browser; only their names are used.</span>'));
     document.head.insertAdjacentHTML('beforeend', `<style>
-      .bar{flex-wrap:wrap}
-      .demo-note{font:500 11px/1.4 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-      .demo-note a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid currentColor}
-      .demo-note a:hover{color:var(--accent)}
+      .demobar{background:var(--ink);color:var(--paper);font:13px/1.45 var(--sans)}
+      .demobar .wrap{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;padding-top:9px;padding-bottom:9px}
+      .demobar b{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;background:var(--accent);color:#fff;border-radius:4px;padding:4px 7px}
+      .demobar span{flex:1 1 300px;min-width:0}
+      .demobar .dl{flex:0 0 auto;display:flex;gap:14px;font:500 11px/1.4 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+      .demobar a{color:var(--paper);text-decoration:none;border-bottom:1px solid var(--accent)}
+      .demobar a:hover{color:var(--accent)}
+      .demotag{display:inline-block;font:500 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);border:1px solid currentColor;border-radius:99px;padding:4px 8px;margin-right:8px;white-space:nowrap;vertical-align:middle}
+      .dbar .demotag{margin:0 0 0 8px}
+      .demofeed{margin:0;padding:12px 18px 10px;border-bottom:1px solid var(--rule2);font:12px/1.5 var(--mono);color:var(--muted)}
+      .demonote{color:var(--accent-ink);font-size:12px}
     </style>`);
   });
 })();
