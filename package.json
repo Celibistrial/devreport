@@ -14,5 +14,8 @@
     "ai": "^7.0.127",
     "ai-sdk-provider-claude-code": "^4.3.3",
     "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
