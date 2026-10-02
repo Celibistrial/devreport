@@ -5,7 +5,7 @@ Turn a messy project folder into a LaTeX report or slide deck whose charts can't
 - [Live demo](https://devreport-eta.vercel.app): the real UI with a replayed build, so you can click through it without a key
 - [Demo video](https://www.youtube.com/watch?v=0RqY4tLsTRk)
 - [Code on GitHub](https://github.com/Celibistrial/devreport)
-- Samples: [report](https://github.com/Celibistrial/devreport/blob/main/samples/report.pdf) · [deck in Trigon](https://github.com/Celibistrial/devreport/blob/main/samples/slides-trigon.pdf) · [deck in Moloch](https://github.com/Celibistrial/devreport/blob/main/samples/slides-moloch.pdf) · [deck in Midnight](https://github.com/Celibistrial/devreport/blob/main/samples/slides-midnight.pdf) · [deck from a PowerPoint template](https://github.com/Celibistrial/devreport/blob/main/samples/slides-custom-template.pdf)
+- Samples: [report](https://github.com/Celibistrial/devreport/blob/main/samples/report.pdf) · [deck in Trigon](https://github.com/Celibistrial/devreport/blob/main/samples/slides-trigon.pdf) · [deck in Moloch](https://github.com/Celibistrial/devreport/blob/main/samples/slides-moloch.pdf) · [deck in Midnight](https://github.com/Celibistrial/devreport/blob/main/samples/slides-midnight.pdf)
 
 ## Inspiration
 
@@ -19,7 +19,7 @@ You drop in a zip, loose files or a GitHub link, then pick Report or Slides, a l
 
 An agent then writes the LaTeX and compiles it with tectonic, fixing its own errors while a short progress log updates. The PDF opens in a custom viewer. From there you can switch between 7 slide themes in a little over a second (try it on the [live demo](https://devreport-eta.vercel.app)), leave a note on one slide, ask for changes, or add more files later. Each revision edits the same document and keeps the old versions.
 
-Reports use a standard research-paper layout with an abstract, numbered sections and numbered figures. Slides can also copy the look of an uploaded .pptx template ([example](https://github.com/Celibistrial/devreport/blob/main/samples/slides-custom-template.pdf)).
+Reports use a standard research-paper layout with an abstract, numbered sections and numbered figures. Slides can also copy the look of an uploaded .pptx template.
 
 ## How I built it
 
